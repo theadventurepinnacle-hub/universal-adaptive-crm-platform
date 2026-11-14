@@ -1,0 +1,44 @@
+name: Extract CRM source archive
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'universal-adaptive-crm-platform%20(1).zip'
+      - '.github/workflows/extract-crm-source.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Extract project files
+        shell: bash
+        run: |
+          ZIP_FILE='universal-adaptive-crm-platform%20(1).zip'
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "Archive is not present; nothing to extract."
+            exit 0
+          fi
+
+          unzip -oq "$ZIP_FILE" -d .
+          rm -f "$ZIP_FILE" crm-chunk-*.b64
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No extracted source changes to commit."
+          else
+            git commit -m "Extract CRM application source"
+            git push
+          fi
