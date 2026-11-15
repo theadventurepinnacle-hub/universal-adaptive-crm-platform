@@ -739,7 +739,7 @@ export function SettingsView({ data, onToast }: {
         <div className="stack">
           {tab === "Workspace" && <>
             <Card>
-              <CardHead title="Business profile" subtitle="Shown on quotations, invoices and your workspace" actions={<span className={`badge badge-${data.organization.slug === "insurance" ? "mint" : data.organization.slug === "real-estate" ? "lilac" : "yellow"}`}>{data.organization.industry}</span>} />
+              <CardHead title="Business profile" subtitle="Shown on quotations, invoices and your workspace" actions={<span className="badge badge-yellow">{data.organization.industry}</span>} />
               <div className="form-grid">
                 <label className="field"><span className="field-label">Business name</span><input defaultValue={data.organization.name} /></label>
                 <label className="field"><span className="field-label">Business type</span><input defaultValue="Private company" /></label>
