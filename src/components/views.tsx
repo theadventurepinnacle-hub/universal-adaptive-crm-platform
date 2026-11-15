@@ -12,7 +12,7 @@ import {
   LayoutGrid, List, MessageCircle, Package, Pencil, Phone, Plus, ReceiptText, RefreshCw, Search,
   Settings2, Share2, ShieldCheck, Sparkles, Target, Trash2, TrendingUp, Truck, Users, Wallet,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 /* ---------------------------------- contacts --------------------------------- */
 
@@ -723,6 +723,57 @@ export function SettingsView({ data, onToast }: {
   onToast: (message: string) => void;
 }) {
   const [tab, setTab] = useState("Workspace");
+  const [metaConfig, setMetaConfig] = useState<{ callbackUrl: string; verifyToken: string; credentialsSaved: boolean; appId: string; leadAdsEnabled: boolean; aiEnabled: boolean; aiModel: string } | null>(null);
+  const [metaAppId, setMetaAppId] = useState("");
+  const [metaAppSecret, setMetaAppSecret] = useState("");
+  const [metaAccessToken, setMetaAccessToken] = useState("");
+  const [metaLoading, setMetaLoading] = useState(false);
+  const [metaSaving, setMetaSaving] = useState(false);
+  const [metaError, setMetaError] = useState("");
+
+  useEffect(() => {
+    if (tab !== "Integrations") return;
+    let active = true;
+    setMetaLoading(true);
+    fetch("/api/integrations/meta")
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Could not load integration status");
+        if (active) { setMetaConfig(result); setMetaAppId(result.appId || ""); }
+      })
+      .catch((error) => { if (active) setMetaError(error instanceof Error ? error.message : "Could not load integration status"); })
+      .finally(() => { if (active) setMetaLoading(false); });
+    return () => { active = false; };
+  }, [tab]);
+
+  const saveMetaCredentials = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setMetaSaving(true);
+    setMetaError("");
+    try {
+      const response = await fetch("/api/integrations/meta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appId: metaAppId, appSecret: metaAppSecret, accessToken: metaAccessToken }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not save Meta credentials");
+      setMetaAppSecret("");
+      setMetaAccessToken("");
+      setMetaConfig((current) => current ? { ...current, credentialsSaved: result.credentialsSaved, leadAdsEnabled: result.leadAdsEnabled, appId: metaAppId } : current);
+      onToast("Meta credentials saved securely");
+    } catch (error) {
+      setMetaError(error instanceof Error ? error.message : "Could not save Meta credentials");
+    } finally {
+      setMetaSaving(false);
+    }
+  };
+
+  const copyMetaValue = (value: string) => {
+    void navigator.clipboard.writeText(value)
+      .then(() => onToast("Copied to clipboard"))
+      .catch(() => onToast("Could not copy. Select the text and copy it."));
+  };
   const [permissions, setPermissions] = useState<Record<string, boolean>>({ "View all contacts": true, "Manage deals": true, "View revenue": true, "Export reports": false, "Manage team": false });
   const [autos, setAutos] = useState<Record<string, boolean>>({ "Assign new leads automatically": true, "Create first follow-up": true, "Quote follow-up after 2 days": true, "Overdue payment reminders": true, "Inactive customer re-engagement": false });
   const [alerts, setAlerts] = useState<Record<string, boolean>>({ "New lead assigned": true, "Payment overdue": true, "Deal stage changed": true, "Daily task digest": false });
@@ -733,7 +784,7 @@ export function SettingsView({ data, onToast }: {
       <div className="settings-layout">
         <Card pad={false} className="settings-tabs-card">
           <div className="settings-tabs">
-            {["Workspace", "Pipeline & fields", "Team", "Automations", "Notifications"].map((item) => <button key={item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>{item}<ChevronRight size={13} /></button>)}
+            {["Workspace", "Pipeline & fields", "Team", "Automations", "Notifications", "Integrations"].map((item) => <button key={item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>{item}<ChevronRight size={13} /></button>)}
           </div>
         </Card>
         <div className="stack">
@@ -795,6 +846,59 @@ export function SettingsView({ data, onToast }: {
             <CardHead title="Automation rules" subtitle="What the system does so your team doesn’t have to remember" actions={<span className="badge badge-mint"><i className="dot" />{Object.values(autos).filter(Boolean).length} active</span>} />
             <div className="setting-rows">{Object.entries(autos).map(([label, value]) => <div key={label} className="setting-row"><div><strong>{label}</strong><small>{label === "Assign new leads automatically" ? "Round-robin assignment from your active team" : label === "Create first follow-up" ? "A follow-up is scheduled within 24 hours" : label === "Quote follow-up after 2 days" ? "Never let a proposal go cold" : label === "Overdue payment reminders" ? "Notify the deal owner when a payment passes its due date" : "Create a follow-up after 60 days of silence"}</small></div><Toggle label={label} checked={value} onChange={(next) => setAutos((current) => ({ ...current, [label]: next }))} /></div>)}</div>
           </Card>}
+          {tab === "Integrations" && <>
+            <Card>
+              <CardHead title="Meta inbox & lead integrations" subtitle="Receive WhatsApp messages, Instagram DMs and Facebook Lead Ads directly in your CRM" actions={<span className={`badge ${metaConfig?.credentialsSaved ? "badge-mint" : "badge-yellow"}`}>{metaConfig?.credentialsSaved ? "Meta app saved" : "Setup required"}</span>} />
+              {metaLoading && <p className="muted-note">Checking integration settings…</p>}
+              {metaConfig && <>
+                <div className="setting-row">
+                  <div><strong>Meta webhook callback URL</strong><small>Paste this into your Meta Developer App webhook settings</small><code>{metaConfig.callbackUrl}</code></div>
+                  <button className="btn btn-secondary btn-sm" type="button" onClick={() => copyMetaValue(metaConfig.callbackUrl)}>Copy URL</button>
+                </div>
+                <div className="setting-row">
+                  <div><strong>Webhook verify token</strong><small>Use the exact token below when Meta asks for a Verify Token</small><code>{metaConfig.verifyToken || "Not configured"}</code></div>
+                  <button className="btn btn-secondary btn-sm" type="button" disabled={!metaConfig.verifyToken} onClick={() => copyMetaValue(metaConfig.verifyToken)}>Copy token</button>
+                </div>
+                <div className="setting-row">
+                  <div><strong>WhatsApp & Instagram inbound messages</strong><small>{metaConfig.credentialsSaved ? "App signature credentials saved — subscribe the webhook fields in Meta." : "Save your Meta App ID and App Secret below to enable signed webhook events."}</small></div>
+                  <span className="badge badge-gray">{metaConfig.credentialsSaved ? "Ready for subscription" : "Not connected"}</span>
+                </div>
+                <div className="setting-row">
+                  <div><strong>Facebook Lead Ads</strong><small>{metaConfig.leadAdsEnabled ? "Page access token saved; form details can be retrieved from leadgen events." : "Optional: add a Page Access Token to import form answers from Lead Ads."}</small></div>
+                  <span className="badge badge-gray">{metaConfig.leadAdsEnabled ? "Token saved" : "Optional setup"}</span>
+                </div>
+                <div className="setting-row">
+                  <div><strong>AI lead qualification</strong><small>Summarise messages, identify destinations and dates, prioritise enquiries, and suggest a reply.</small></div>
+                  <span className="badge badge-mint">{metaConfig.aiEnabled ? "AI available" : "AI credentials missing"}</span>
+                </div>
+              </>}
+            </Card>
+            <Card>
+              <CardHead title="Connect your Meta app" subtitle="Credentials are encrypted before storage and are never shown again after saving." />
+              <form className="form-grid" onSubmit={saveMetaCredentials}>
+                <label className="field"><span className="field-label">Meta App ID</span><input value={metaAppId} onChange={(event) => setMetaAppId(event.target.value)} inputMode="numeric" placeholder="Your Meta App ID" required /></label>
+                <label className="field"><span className="field-label">Meta App Secret</span><input value={metaAppSecret} onChange={(event) => setMetaAppSecret(event.target.value)} type="password" autoComplete="new-password" placeholder={metaConfig?.credentialsSaved ? "Saved — leave blank to keep current secret" : "Paste your App Secret"} required={!metaConfig?.credentialsSaved} /></label>
+                <label className="field"><span className="field-label">Page Access Token (optional)</span><input value={metaAccessToken} onChange={(event) => setMetaAccessToken(event.target.value)} type="password" autoComplete="new-password" placeholder={metaConfig?.leadAdsEnabled ? "Saved — leave blank to keep current token" : "Needed for Facebook Lead Ads form retrieval"} /></label>
+                {metaError && <p className="login-error" role="alert">{metaError}</p>}
+                <div className="form-actions">
+                  <button className="btn btn-primary" type="submit" disabled={metaSaving || !metaAppId.trim() || (!metaAppSecret.trim() && !metaAccessToken.trim())}>
+                    {metaSaving ? <span className="spinner" /> : <Check size={15} />} Save Meta credentials
+                  </button>
+                </div>
+              </form>
+            </Card>
+            <Card>
+              <CardHead title="Meta setup checklist" subtitle="These one-time subscriptions are completed in Meta for Developers, not inside this CRM." />
+              <ol className="integration-steps">
+                <li>Create or open your Meta app at <a href="https://developers.facebook.com/apps/" target="_blank" rel="noreferrer">Meta for Developers</a>, then copy its App ID and App Secret into the form above.</li>
+                <li>Add WhatsApp Cloud API and Instagram Messaging to the app. Connect your WhatsApp Business Account and Instagram professional account.</li>
+                <li>In Webhooks, set the callback URL and Verify Token shown above. Subscribe to WhatsApp <code>messages</code> and Instagram <code>messages</code> events.</li>
+                <li>Subscribe your WhatsApp Business Account and Instagram account to the app's webhook and grant the messaging permissions required by your Meta app/account setup.</li>
+                <li>For Facebook Lead Ads, add a Page Access Token above, subscribe the Page to the <code>leadgen</code> field, and grant Page lead access permissions.</li>
+              </ol>
+              <p className="muted-note">Once Meta verifies this callback and webhook subscriptions are active, incoming messages and lead-form submissions create or update CRM enquiries automatically. This CRM captures inbound messages; it does not send outbound replies.</p>
+            </Card>
+          </>}
           {tab === "Notifications" && <Card>
             <CardHead title="Action-based notifications" subtitle="Only the updates that need a response" />
             <div className="setting-rows">{Object.entries(alerts).map(([label, value]) => <div key={label} className="setting-row"><div><strong>{label}</strong><small>{label === "Daily task digest" ? "A single morning summary instead of individual alerts" : "Sent to the assigned owner"}</small></div><Toggle label={label} checked={value} onChange={(next) => setAlerts((current) => ({ ...current, [label]: next }))} /></div>)}</div>

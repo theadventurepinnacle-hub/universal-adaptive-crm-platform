@@ -377,45 +377,48 @@ export function CompanyDrawer({ data, company, onClose, onOpenContact }: { data:
 
 /* --------------------------------- assistant -------------------------------- */
 
-function assistantAnswer(question: string, data: WorkspaceData, employeeMode: boolean) {
-  const query = question.toLowerCase();
-  const pending = data.payments.reduce((sum, item) => sum + item.totalAmount - item.paidAmount, 0);
-  const overdue = data.payments.filter((item) => item.status === "Overdue");
-  const openTasks = data.tasks.filter((item) => item.status !== "completed");
-  const best = [...data.team].filter((member) => member.role.toLowerCase() !== "owner").sort((a, b) => b.revenue - a.revenue)[0];
-  const hot = [...data.leads].sort((a, b) => b.score - a.score);
-  const pipeline = data.deals.reduce((sum, deal) => sum + deal.value, 0);
-  if (query.includes("pending") || query.includes("money") || query.includes("payment")) return `${money(pending, false)} is pending across ${data.payments.filter((item) => item.status !== "Paid").length} payments. ${overdue.length} are overdue — start with ${overdue[0]?.customer ?? "the oldest balance"}.`;
-  if (query.includes("employee") || query.includes("perform") || query.includes("best")) return `${best.name} leads the team with ${money(best.revenue)} attributed revenue, ${best.tasksDone} completed tasks and a ${best.trend}% trend.`;
-  if (query.includes("cold") || query.includes("contact")) return `${hot.filter((lead) => lead.score < 55).length} leads are cooling off. ${hot.slice(-2).map((lead) => lead.name).join(" and ")} should be re-engaged first.`;
-  if (query.includes("pipeline") || query.includes("deal")) return `${money(pipeline)} is in your pipeline across ${data.deals.length} deals, with a weighted forecast of ${money(data.deals.reduce((sum, deal) => sum + deal.value * deal.probability / 100, 0))}.`;
-  if (query.includes("task") || query.includes("today") || query.includes("call first")) return `You have ${openTasks.length} open work items. Start with “${openTasks[0]?.title ?? "review your queue"}”, then call ${hot.slice(0, 2).map((lead) => lead.name).join(" and ")} (scores ${hot[0]?.score} and ${hot[1]?.score}).`;
-  if (query.includes("source")) return `${data.profile.insights[0].title}. ${data.profile.insights[0].detail}`;
-  return employeeMode
-    ? `Your day is manageable: ${openTasks.length} open tasks and ${data.leads.filter((lead) => lead.score >= 70).length} high-priority leads. Finish the scored calls first — actions update the CRM automatically.`
-    : `${data.organization.name} holds ${money(pipeline)} in open pipeline and ${money(pending)} pending. Your clearest next move: ${data.profile.attention[0].title.toLowerCase()}.`;
-}
-
 export function AssistantPanel({ data, employeeMode, onClose }: { data: WorkspaceData; employeeMode: boolean; onClose: () => void }) {
   const prompts = employeeMode
-    ? ["Who should I call first?", "What are my pending tasks?", "Which contacts need follow-up?"]
-    : ["How is my business doing?", "Which employee is performing best?", "How much money is pending?", "Which leads are going cold?"];
+    ? ["Who should I call first?", "What are my pending tasks?", "Which enquiries need follow-up?"]
+    : ["How is my travel business doing?", "Which enquiries should I follow up today?", "What are travellers asking about?", "Summarise my trip bookings"];
   const [messages, setMessages] = useState<Array<{ role: "assistant" | "user"; text: string }>>([{
     role: "assistant",
-    text: employeeMode ? "I’ve reviewed your queue. Where should we start?" : `I’ve reviewed ${data.organization.name}. Ask me anything about your pipeline, team, or cash.`,
+    text: `I’m your AI assistant for ${data.organization.name}. I can review enquiries, trip bookings, follow-ups and payments using your live CRM data.`,
   }]);
   const [input, setInput] = useState("");
-  const ask = (question: string) => {
-    if (!question.trim()) return;
-    setMessages((current) => [...current, { role: "user", text: question }, { role: "assistant", text: assistantAnswer(question, data, employeeMode) }]);
+  const [busy, setBusy] = useState(false);
+
+  const ask = async (question: string) => {
+    const trimmed = question.trim();
+    if (!trimmed || busy) return;
+    setMessages((current) => [...current, { role: "user", text: trimmed }]);
     setInput("");
+    setBusy(true);
+    try {
+      const response = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: trimmed }),
+      });
+      const result = await response.json() as { answer?: string; error?: string };
+      if (!response.ok) throw new Error(result.error || "AI assistant could not answer just now.");
+      setMessages((current) => [...current, { role: "assistant", text: result.answer || "I could not produce an answer for that question." }]);
+    } catch (error) {
+      setMessages((current) => [...current, {
+        role: "assistant",
+        text: error instanceof Error ? error.message : "AI assistant is temporarily unavailable. Please try again.",
+      }]);
+    } finally {
+      setBusy(false);
+    }
   };
+
   return (
     <div className="overlay drawer-overlay">
       <button className="overlay-scrim" onClick={onClose} aria-label="Close assistant" />
       <aside className="assistant-panel">
         <header className="assistant-head">
-          <div className="assistant-brand"><span><Sparkles size={18} /></span><div><h2>Business Assistant</h2><p><i /> Using live CRM data</p></div></div>
+          <div className="assistant-brand"><span><Sparkles size={18} /></span><div><h2>AI Business Assistant</h2><p><i /> Live CRM context · AI Gateway</p></div></div>
           <button className="icon-btn dark" onClick={onClose} aria-label="Close"><X size={17} /></button>
         </header>
         <div className="assistant-context"><Bot size={14} /> {employeeMode ? "Focused on your assigned work" : `Viewing ${data.organization.name}`}</div>
@@ -426,11 +429,12 @@ export function AssistantPanel({ data, employeeMode, onClose }: { data: Workspac
               <p>{message.text}</p>
             </div>
           ))}
+          {busy && <div className="chat assistant"><span className="chat-avatar"><Sparkles size={12} /></span><p><span className="spinner" /> Reviewing your CRM…</p></div>}
         </div>
-        <div className="assistant-prompts">{prompts.map((prompt) => <button key={prompt} onClick={() => ask(prompt)}>{prompt}<ChevronRight size={12} /></button>)}</div>
-        <form className="assistant-input" onSubmit={(event) => { event.preventDefault(); ask(input); }}>
-          <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask about your business..." />
-          <button aria-label="Send"><Send size={15} /></button>
+        <div className="assistant-prompts">{prompts.map((prompt) => <button key={prompt} disabled={busy} onClick={() => void ask(prompt)}>{prompt}<ChevronRight size={12} /></button>)}</div>
+        <form className="assistant-input" onSubmit={(event) => { event.preventDefault(); void ask(input); }}>
+          <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask your AI business assistant..." disabled={busy} />
+          <button aria-label="Send" disabled={busy || !input.trim()}><Send size={15} /></button>
         </form>
       </aside>
     </div>

@@ -1,4 +1,5 @@
 import {
+  bigserial,
   boolean,
   index,
   integer,
@@ -265,4 +266,52 @@ export const customFields = pgTable(
     index("custom_fields_org_idx").on(table.organizationId),
     uniqueIndex("custom_fields_key_idx").on(table.organizationId, table.entityType, table.fieldKey),
   ],
+);
+
+
+export const leadMessages = pgTable(
+  "lead_messages",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    organizationId: integer("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    leadId: integer("lead_id").references(() => leads.id, { onDelete: "set null" }),
+    platform: text("platform").notNull(),
+    externalMessageId: text("external_message_id").notNull(),
+    externalConversationId: text("external_conversation_id"),
+    senderId: text("sender_id").notNull(),
+    senderName: text("sender_name"),
+    direction: text("direction").notNull().default("inbound"),
+    messageText: text("message_text").notNull().default(""),
+    mediaType: text("media_type").notNull().default("text"),
+    aiSummary: text("ai_summary"),
+    aiIntent: text("ai_intent"),
+    aiDestination: text("ai_destination"),
+    aiTravelDate: text("ai_travel_date"),
+    aiGroupSize: integer("ai_group_size"),
+    aiBudget: integer("ai_budget"),
+    aiPriority: text("ai_priority"),
+    aiReplySuggestion: text("ai_reply_suggestion"),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("lead_messages_platform_message_unique").on(table.platform, table.externalMessageId),
+    index("lead_messages_org_received_idx").on(table.organizationId, table.receivedAt),
+    index("lead_messages_lead_received_idx").on(table.leadId, table.receivedAt),
+  ],
+);
+
+export const integrationCredentials = pgTable(
+  "integration_credentials",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    organizationId: integer("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    appId: text("app_id"),
+    appSecretCiphertext: text("app_secret_ciphertext").notNull(),
+    accessTokenCiphertext: text("access_token_ciphertext"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("integration_credentials_org_provider_unique").on(table.organizationId, table.provider)],
 );
