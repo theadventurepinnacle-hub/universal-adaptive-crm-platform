@@ -101,7 +101,7 @@ export function ContactsView({ data, onAdd, onView, onEdit, onDelete }: {
           ))}
         </div>
         {!filtered.length && <Empty title="No contacts found" detail="Try a different search or status filter." />}
-        <div className="table-foot"><span>Showing {filtered.length} of {data.customers.length} contacts</span><span>Powered by Opero CRM</span></div>
+        <div className="table-foot"><span>Showing {filtered.length} of {data.customers.length} contacts</span><span>The Adventure Pinnacle CRM</span></div>
       </Card>
     </div>
   );
@@ -718,11 +718,9 @@ export function ReportsView({ data, onToast }: { data: WorkspaceData; onToast: (
 
 /* --------------------------------- settings --------------------------------- */
 
-export function SettingsView({ data, onSwitchIndustry, onToast, onOpenOnboarding }: {
+export function SettingsView({ data, onToast }: {
   data: WorkspaceData;
-  onSwitchIndustry: (slug: WorkspaceData["organization"]["slug"]) => void;
   onToast: (message: string) => void;
-  onOpenOnboarding: () => void;
 }) {
   const [tab, setTab] = useState("Workspace");
   const [permissions, setPermissions] = useState<Record<string, boolean>>({ "View all contacts": true, "Manage deals": true, "View revenue": true, "Export reports": false, "Manage team": false });
@@ -752,16 +750,14 @@ export function SettingsView({ data, onSwitchIndustry, onToast, onOpenOnboarding
               </div>
             </Card>
             <Card>
-              <CardHead title="Industry template" subtitle="Changing the business category reconfigures fields, pipeline and terminology" />
+              <CardHead title="Travel & tourism workspace" subtitle="Configured for trip enquiries, traveller relationships and bookings" />
               <div className="industry-switch">
-                {[{ slug: "insurance" as const, name: "Insurance" }, { slug: "real-estate" as const, name: "Real Estate" }, { slug: "retail" as const, name: "Retail" }].map((item) => (
-                  <button key={item.slug} className={data.organization.slug === item.slug ? "active" : ""} onClick={() => onSwitchIndustry(item.slug)}>
-                    <span><Building2 size={16} /></span><div><strong>{item.name}</strong><small>{item.slug === "insurance" ? "Policies · renewals · premiums" : item.slug === "real-estate" ? "Properties · site visits · bookings" : "Products · orders · inventory"}</small></div>
-                    {data.organization.slug === item.slug ? <Check size={15} /> : <ChevronRight size={15} />}
-                  </button>
-                ))}
+                <div className="industry-switch-item active">
+                  <span><Building2 size={16} /></span>
+                  <div><strong>The Adventure Pinnacle</strong><small>Trips · departures · itineraries · payments</small></div>
+                  <Check size={15} />
+                </div>
               </div>
-              <button className="btn btn-secondary btn-sm mt" onClick={onOpenOnboarding}><Plus size={14} /> Add another business</button>
             </Card>
           </>}
           {tab === "Pipeline & fields" && <>
@@ -899,7 +895,7 @@ export function MoreView({ data, onNavigate, onToast }: { data: WorkspaceData; o
           return <button key={module.label} className="more-card" onClick={() => onToast(`${module.label} module opened`)}><span className="summary-icon lilac"><Icon size={17} /></span><div><strong>{module.label}</strong><small>{data.organization.industry} workflow</small></div><ChevronRight size={15} /></button>;
         })}
       </div></section>
-      <Card><div className="more-footer"><div><strong>Opero CRM</strong><small>One simple system to run your business · v1.0</small></div><span className="badge badge-gray">{data.organization.name}</span></div></Card>
+      <Card><div className="more-footer"><div><strong>The Adventure Pinnacle CRM</strong><small>One simple system to run your business · v1.0</small></div><span className="badge badge-gray">{data.organization.name}</span></div></Card>
     </div>
   );
 }

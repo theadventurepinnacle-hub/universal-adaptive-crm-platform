@@ -24,7 +24,7 @@ function seriesFor(data: WorkspaceData, range: RevenueRange) {
 
 function valuesFor(data: WorkspaceData, range: RevenueRange) {
   const base = data.profile.chart.map((point) => point.value);
-  const average = base.reduce((sum, value) => sum + value, 0) / base.length;
+  const average = base.length ? base.reduce((sum, value) => sum + value, 0) / base.length : 0;
   if (range === "7D") return base;
   if (range === "30D") return growthFactors.map((factor) => Math.round(average * factor * 1.35));
   return growthFactors.map((factor) => Math.round(average * factor * 4.2));
@@ -34,7 +34,7 @@ export function RevenueChart({ data }: { data: WorkspaceData }) {
   const [range, setRange] = useState<RevenueRange>("7D");
   const labels = seriesFor(data, range);
   const values = valuesFor(data, range);
-  const max = Math.max(...values) * 1.12;
+  const max = Math.max(...values, 1) * 1.12;
   const width = 780;
   const height = 250;
   const left = 50;
@@ -63,8 +63,7 @@ export function RevenueChart({ data }: { data: WorkspaceData }) {
       />
       <div className="chart-summary">
         <strong>{money(total)}</strong>
-        <span className="trend-up"><ArrowUpRight size={13} /> 12.8%</span>
-        <small>vs previous period</small>
+        <small>Recorded revenue in this workspace</small>
       </div>
       <div className="chart-wrap">
         <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg" role="img" aria-label="Revenue analytics chart">
@@ -150,7 +149,7 @@ export function SourceDonut({ data, compact = false }: { data: WorkspaceData; co
 
 function SalesBars({ data }: { data: WorkspaceData }) {
   const points = data.profile.chart;
-  const max = Math.max(...points.map((point) => point.value));
+  const max = Math.max(...points.map((point) => point.value), 1);
   const colors = ["#fad85d", "#66e3c2", "#d8a6ff", "#ffb37a", "#fad85d", "#8ab4ff", "#66e3c2"];
   return (
     <div className="bars">
@@ -196,18 +195,18 @@ export function OwnerDashboard({ data, onNavigate, onAssistant, onAddContact, on
   const collected = data.payments.reduce((sum, payment) => sum + payment.paidAmount, 0);
   const pending = data.payments.reduce((sum, payment) => sum + Math.max(0, payment.totalAmount - payment.paidAmount), 0);
   const wonLeads = data.leads.filter((lead) => data.stages.find((stage) => stage.id === lead.stageId)?.isWon).length;
-  const conversion = Math.round((wonLeads / Math.max(data.leads.length, 1)) * 100) || 24;
+  const conversion = Math.round((wonLeads / Math.max(data.leads.length, 1)) * 100);
   const openTasks = data.tasks.filter((task) => task.status !== "completed").slice(0, 4);
   const hotLeads = [...data.leads].filter((lead) => lead.score >= 70).sort((a, b) => b.score - a.score);
   const team = [...data.team].filter((member) => member.role.toLowerCase() !== "owner").sort((a, b) => b.revenue - a.revenue);
   const today = new Intl.DateTimeFormat("en-IN", { weekday: "short", day: "numeric", month: "short" }).format(new Date());
 
   const kpis = useMemo(() => [
-    { label: "Total contacts", value: String(data.customers.length), detail: "+8.2% this month", icon: Users, tone: "mint", foot: `${data.companies.length} companies`, onClick: () => onNavigate("contacts") },
-    { label: data.profile.leadPlural, value: String(data.leads.length), detail: `${data.leads.filter((lead) => lead.score >= 75).length} hot leads`, icon: Target, tone: "yellow", foot: `${data.leads.filter((lead) => !lead.assignedToId).length} unassigned`, onClick: () => onNavigate("leads") },
+    { label: data.profile.customerPlural, value: String(data.customers.length), detail: "Saved traveller records", icon: Users, tone: "mint", foot: `${data.companies.length} companies`, onClick: () => onNavigate("contacts") },
+    { label: data.profile.leadPlural, value: String(data.leads.length), detail: `${data.leads.filter((lead) => lead.score >= 75).length} high-priority enquiries`, icon: Target, tone: "yellow", foot: `${data.leads.filter((lead) => !lead.assignedToId).length} unassigned`, onClick: () => onNavigate("leads") },
     { label: "Active deals", value: String(data.deals.length), detail: money(data.deals.reduce((sum, deal) => sum + deal.value, 0)), icon: Handshake, tone: "lilac", foot: `${data.deals.filter((deal) => deal.probability >= 70).length} likely to close`, onClick: () => onNavigate("deals") },
-    { label: "Total revenue", value: money(collected), detail: "+12.8% vs last month", icon: CircleDollarSign, tone: "dark", foot: `${money(pending)} outstanding`, onClick: () => onNavigate("payments") },
-    { label: "Conversion rate", value: `${conversion}%`, detail: `${wonLeads} won of ${data.leads.length}`, icon: TrendingUp, tone: "dark", foot: "Top quartile", onClick: () => onNavigate("reports") },
+    { label: "Payments collected", value: money(collected), detail: `${data.payments.length} payment records`, icon: CircleDollarSign, tone: "dark", foot: `${money(pending)} outstanding`, onClick: () => onNavigate("payments") },
+    { label: "Conversion rate", value: `${conversion}%`, detail: `${wonLeads} won of ${data.leads.length}`, icon: TrendingUp, tone: "dark", foot: "Based on recorded enquiries", onClick: () => onNavigate("reports") },
   ], [collected, conversion, data, onNavigate, pending, wonLeads]);
 
   return (
@@ -267,7 +266,7 @@ export function OwnerDashboard({ data, onNavigate, onAssistant, onAddContact, on
           />
           <SalesBars data={data} />
           <div className="stat-row">
-            <div><span>Best day</span><strong>{money(Math.max(...data.profile.chart.map((point) => point.value)))}</strong><small>Saturday</small></div>
+            <div><span>Top day</span><strong>{data.profile.chart.some((point) => point.value > 0) ? money(Math.max(...data.profile.chart.map((point) => point.value))) : "—"}</strong><small>Based on recorded sales</small></div>
             <div><span>Avg. deal size</span><strong>{money(data.deals.reduce((sum, deal) => sum + deal.value, 0) / Math.max(data.deals.length, 1))}</strong><small>Across open deals</small></div>
             <div><span>Win rate</span><strong>{conversion}%</strong><small>Last 30 days</small></div>
           </div>

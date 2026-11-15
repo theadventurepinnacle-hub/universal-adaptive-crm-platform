@@ -16,14 +16,15 @@ import {
 } from "@/lib/crm-data";
 import type { IndustryKey } from "@/lib/crm-types";
 import { NextRequest } from "next/server";
+import { getAuthenticatedSession, isSameOrigin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-const industries = new Set<IndustryKey>(["insurance", "real-estate", "retail"]);
+const industries = new Set<IndustryKey>(["adventure"]);
 
 function getIndustry(value: unknown): IndustryKey {
   if (typeof value === "string" && industries.has(value as IndustryKey)) return value as IndustryKey;
-  return "insurance";
+  return "adventure";
 }
 
 function text(value: unknown, fallback = "") {
@@ -31,12 +32,15 @@ function text(value: unknown, fallback = "") {
 }
 
 export async function GET(request: NextRequest) {
+  if (!(await getAuthenticatedSession())) return Response.json({ error: "Authentication required" }, { status: 401 });
   const industry = getIndustry(request.nextUrl.searchParams.get("industry"));
   const data = await getWorkspaceData(industry);
   return Response.json(data);
 }
 
 export async function POST(request: NextRequest) {
+  if (!(await getAuthenticatedSession())) return Response.json({ error: "Authentication required" }, { status: 401 });
+  if (!isSameOrigin(request)) return Response.json({ error: "Invalid request origin" }, { status: 403 });
   try {
     const body = await request.json() as Record<string, unknown>;
     const industry = getIndustry(body.industry);

@@ -7,8 +7,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Opero CRM — One simple system to run your business",
-  description: "A premium, employee-first CRM and business management workspace for growing teams.",
+  title: "The Adventure Pinnacle CRM",
+  description: "A private workspace for The Adventure Pinnacle enquiries, travellers, trips and bookings.",
 };
 
 export const viewport: Viewport = {

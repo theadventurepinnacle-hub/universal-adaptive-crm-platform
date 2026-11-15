@@ -1,4 +1,4 @@
-export type IndustryKey = "insurance" | "real-estate" | "retail";
+export type IndustryKey = "adventure";
 export type AppRole = "owner" | "employee";
 
 export type OrganizationView = {

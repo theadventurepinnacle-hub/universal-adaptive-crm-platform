@@ -18,7 +18,7 @@ import {
   users,
 } from "@/db/schema";
 import { deriveCompanies, scoreLead } from "@/lib/derive";
-import { demoOrganizations, getFallbackWorkspace, industryProfiles } from "@/lib/industry-data";
+import { industryProfiles } from "@/lib/industry-data";
 import type {
   CreateContactInput,
   CreateDealInput,
@@ -27,263 +27,14 @@ import type {
   IndustryKey,
   WorkspaceData,
 } from "@/lib/crm-types";
-import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ne } from "drizzle-orm";
 
 const iso = (date: Date | null | undefined) => (date ? date.toISOString() : null);
 
-export async function ensureDemoData() {
-  const existing = await db.select({ id: organizations.id }).from(organizations).limit(1);
-  if (existing.length) return;
-
-  for (const demo of demoOrganizations) {
-    const sample = getFallbackWorkspace(demo.slug);
-    await db.transaction(async (tx) => {
-      const [organization] = await tx.insert(organizations).values({
-        name: sample.organization.name,
-        slug: sample.organization.slug,
-        industry: sample.organization.industry,
-        businessType: "Private company",
-        country: sample.organization.country,
-        currency: sample.organization.currency,
-        employeeCount: sample.organization.employees,
-        locationCount: sample.organization.locations,
-        accent: sample.organization.accent,
-      }).returning();
-
-      const [branch] = await tx.insert(branches).values({
-        organizationId: organization.id,
-        name: "Head Office",
-        city: demo.slug === "real-estate" ? "Kochi" : demo.slug === "retail" ? "Bengaluru" : "Kozhikode",
-        isHeadOffice: true,
-      }).returning();
-
-      const userMap = new Map<number, number>();
-      for (const member of sample.team) {
-        const [row] = await tx.insert(users).values({
-          organizationId: organization.id,
-          branchId: branch.id,
-          name: member.name,
-          email: `${member.name.toLowerCase().replace(/[^a-z]+/g, ".")}@${organization.slug}.demo`,
-          role: member.role.toLowerCase(),
-          title: member.title,
-          avatar: member.avatar,
-        }).returning();
-        userMap.set(member.id, row.id);
-      }
-
-      const [pipeline] = await tx.insert(pipelines).values({
-        organizationId: organization.id,
-        name: sample.profile.pipelineName,
-        entityLabel: sample.profile.leadLabel,
-        isDefault: true,
-      }).returning();
-
-      const stageMap = new Map<number, number>();
-      for (const stage of sample.stages) {
-        const [row] = await tx.insert(pipelineStages).values({
-          pipelineId: pipeline.id,
-          name: stage.name,
-          color: stage.color,
-          position: stage.position,
-          isWon: stage.isWon,
-          isLost: stage.isLost,
-        }).returning();
-        stageMap.set(stage.id, row.id);
-      }
-
-      const customerMap = new Map<number, number>();
-      for (const customer of sample.customers) {
-        const owner = sample.team.find((member) => member.name === customer.owner);
-        const [row] = await tx.insert(customers).values({
-          organizationId: organization.id,
-          ownerId: owner ? userMap.get(owner.id) : null,
-          name: customer.name,
-          company: customer.company,
-          phone: customer.phone,
-          email: customer.email,
-          segment: customer.segment,
-          totalValue: customer.totalValue,
-          customData: customer.customData,
-          lastContactAt: new Date(customer.lastContactAt),
-        }).returning();
-        customerMap.set(customer.id, row.id);
-      }
-
-      const leadMap = new Map<number, number>();
-      for (const lead of sample.leads) {
-        const [row] = await tx.insert(leads).values({
-          organizationId: organization.id,
-          pipelineId: pipeline.id,
-          stageId: stageMap.get(lead.stageId)!,
-          assignedToId: lead.assignedToId ? userMap.get(lead.assignedToId) : null,
-          name: lead.name,
-          company: lead.company,
-          phone: lead.phone,
-          email: lead.email,
-          source: lead.source,
-          priority: lead.priority,
-          expectedValue: lead.expectedValue,
-          nextFollowUp: lead.nextFollowUp ? new Date(lead.nextFollowUp) : null,
-          notes: lead.notes,
-          customData: lead.customData,
-          createdAt: new Date(lead.createdAt),
-        }).returning();
-        leadMap.set(lead.id, row.id);
-      }
-
-      for (const task of sample.tasks) {
-        const relatedLead = sample.leads.find((lead) => lead.name === task.relatedTo);
-        const relatedCustomer = sample.customers.find((customer) => customer.name === task.relatedTo);
-        await tx.insert(tasks).values({
-          organizationId: organization.id,
-          assignedToId: task.assignedToId ? userMap.get(task.assignedToId) : null,
-          leadId: relatedLead ? leadMap.get(relatedLead.id) : null,
-          customerId: relatedCustomer ? customerMap.get(relatedCustomer.id) : null,
-          title: task.title,
-          type: task.type,
-          priority: task.priority,
-          status: task.status,
-          dueAt: new Date(task.dueAt),
-          completedAt: task.status === "completed" ? new Date(task.dueAt) : null,
-        });
-      }
-
-      for (const quote of sample.quotations) {
-        const relatedLead = sample.leads.find((lead) => lead.name === quote.customer);
-        const relatedCustomer = sample.customers.find((customer) => customer.name === quote.customer);
-        await tx.insert(quotations).values({
-          organizationId: organization.id,
-          customerId: relatedCustomer ? customerMap.get(relatedCustomer.id) : null,
-          leadId: relatedLead ? leadMap.get(relatedLead.id) : null,
-          quoteNumber: quote.quoteNumber,
-          title: quote.title,
-          amount: quote.amount,
-          tax: quote.tax,
-          status: quote.status,
-          validUntil: new Date(quote.validUntil),
-        });
-      }
-
-      for (const payment of sample.payments) {
-        const customer = sample.customers.find((item) => item.name === payment.customer);
-        await tx.insert(payments).values({
-          organizationId: organization.id,
-          customerId: customer ? customerMap.get(customer.id) : null,
-          assignedToId: userMap.get(sample.team[1].id),
-          reference: payment.reference,
-          description: payment.description,
-          totalAmount: payment.totalAmount,
-          paidAmount: payment.paidAmount,
-          dueAt: new Date(payment.dueAt),
-          status: payment.status,
-        });
-      }
-
-      for (const deal of sample.deals) {
-        const contact = sample.customers.find((customer) => customer.name === deal.contact);
-        const owner = sample.team.find((member) => member.name === deal.owner);
-        const stage = sample.stages.find((item) => item.name === deal.stage);
-        if (!stage) continue;
-        await tx.insert(deals).values({
-          organizationId: organization.id,
-          contactId: contact ? customerMap.get(contact.id) ?? null : null,
-          stageId: stageMap.get(stage.id)!,
-          ownerId: owner ? userMap.get(owner.id) ?? null : null,
-          title: deal.title,
-          company: deal.company,
-          value: deal.value,
-          priority: deal.priority,
-          probability: deal.probability,
-          source: deal.source,
-          expectedCloseAt: new Date(deal.expectedCloseAt),
-        });
-      }
-
-      for (const activity of sample.activities) {
-        const actor = sample.team.find((member) => member.name === activity.actor);
-        await tx.insert(activities).values({
-          organizationId: organization.id,
-          actorId: actor ? userMap.get(actor.id) : null,
-          leadId: activity.leadId ? leadMap.get(activity.leadId) : null,
-          customerId: activity.customerId ? customerMap.get(activity.customerId) : null,
-          type: activity.type,
-          title: activity.title,
-          detail: activity.detail,
-          createdAt: new Date(activity.createdAt),
-        });
-      }
-
-      await tx.insert(notifications).values(sample.notifications.map((notification) => ({
-        organizationId: organization.id,
-        userId: userMap.get(sample.team[0].id),
-        title: notification.title,
-        detail: notification.detail,
-        actionLabel: notification.actionLabel,
-        severity: notification.severity,
-        isRead: notification.isRead,
-        createdAt: new Date(notification.createdAt),
-      })));
-
-      await tx.insert(customFields).values(sample.profile.customFields.map((field, index) => ({
-        organizationId: organization.id,
-        entityType: "lead",
-        label: field.label,
-        fieldKey: field.key,
-        fieldType: field.key.toLowerCase().includes("date") ? "date" : "text",
-        position: index,
-      })));
-    });
-  }
-}
-
-async function ensureDealSeed() {
-  const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(deals);
-  if ((row?.count ?? 0) > 0) return;
-
-  for (const demo of demoOrganizations) {
-    const [organization] = await db.select().from(organizations).where(eq(organizations.slug, demo.slug)).limit(1);
-    if (!organization) continue;
-    const [pipeline] = await db.select().from(pipelines).where(and(eq(pipelines.organizationId, organization.id), eq(pipelines.isDefault, true))).limit(1);
-    if (!pipeline) continue;
-    const [stageRows, userRows, customerRows] = await Promise.all([
-      db.select().from(pipelineStages).where(eq(pipelineStages.pipelineId, pipeline.id)),
-      db.select().from(users).where(eq(users.organizationId, organization.id)),
-      db.select().from(customers).where(eq(customers.organizationId, organization.id)),
-    ]);
-    const sample = getFallbackWorkspace(demo.slug);
-    const values = sample.deals.flatMap((deal) => {
-      const stage = stageRows.find((item) => item.name === deal.stage);
-      if (!stage) return [];
-      const contact = customerRows.find((item) => item.name === deal.contact);
-      const owner = userRows.find((item) => item.name === deal.owner);
-      return [{
-        organizationId: organization.id,
-        contactId: contact?.id ?? null,
-        stageId: stage.id,
-        ownerId: owner?.id ?? null,
-        title: deal.title,
-        company: deal.company,
-        value: deal.value,
-        priority: deal.priority,
-        probability: deal.probability,
-        source: deal.source,
-        expectedCloseAt: new Date(deal.expectedCloseAt),
-      }];
-    });
-    if (values.length) await db.insert(deals).values(values);
-  }
-}
-
-export async function getWorkspaceData(slug: IndustryKey = "insurance"): Promise<WorkspaceData> {
+export async function getWorkspaceData(slug: IndustryKey = "adventure"): Promise<WorkspaceData> {
   try {
-    await ensureDemoData();
-    try {
-      await ensureDealSeed();
-    } catch (error) {
-      console.warn("Demo data backfill skipped:", error instanceof Error ? error.message : error);
-    }
     const [organization] = await db.select().from(organizations).where(eq(organizations.slug, slug)).limit(1);
-    if (!organization) return getFallbackWorkspace(slug);
+    if (!organization) throw new Error("The Adventure Pinnacle workspace is not configured");
 
     const [userRows, pipelineRows, customerRows, dealRows, leadRows, taskRows, paymentRows, quoteRows, activityRows, notificationRows] = await Promise.all([
       db.select().from(users).where(eq(users.organizationId, organization.id)).orderBy(asc(users.id)),
@@ -306,23 +57,17 @@ export async function getWorkspaceData(slug: IndustryKey = "insurance"): Promise
     const stageById = new Map(stageRows.map((stage) => [stage.id, stage]));
     const customerById = new Map(customerRows.map((customer) => [customer.id, customer]));
     const leadById = new Map(leadRows.map((lead) => [lead.id, lead]));
-    const fallback = getFallbackWorkspace(slug);
-    const performanceByName = new Map(fallback.team.map((member) => [member.name, member]));
-
-    const team = userRows.map((user) => {
-      const performance = performanceByName.get(user.name);
-      return {
-        id: user.id,
-        name: user.name,
-        role: user.role.charAt(0).toUpperCase() + user.role.slice(1),
-        title: user.title,
-        avatar: user.avatar,
-        leads: performance?.leads ?? leadRows.filter((lead) => lead.assignedToId === user.id).length,
-        tasksDone: performance?.tasksDone ?? taskRows.filter((task) => task.assignedToId === user.id && task.status === "completed").length,
-        revenue: performance?.revenue ?? 0,
-        trend: performance?.trend ?? 0,
-      };
-    });
+    const team = userRows.map((user) => ({
+      id: user.id,
+      name: user.name,
+      role: user.role.charAt(0).toUpperCase() + user.role.slice(1),
+      title: user.title,
+      avatar: user.avatar,
+      leads: leadRows.filter((lead) => lead.assignedToId === user.id).length,
+      tasksDone: taskRows.filter((task) => task.assignedToId === user.id && task.status === "completed").length,
+      revenue: 0,
+      trend: 0,
+    }));
 
     const mappedCustomers = customerRows.map((customer) => {
       const owner = customer.ownerId ? userById.get(customer.ownerId) : null;
@@ -443,13 +188,12 @@ export async function getWorkspaceData(slug: IndustryKey = "insurance"): Promise
       })),
     };
   } catch (error) {
-    console.warn("Using CRM fallback data during database bootstrap:", error instanceof Error ? error.message : error);
-    return getFallbackWorkspace(slug);
+    console.error("CRM workspace data could not be loaded:", error);
+    throw error;
   }
 }
 
 async function resolveOrganization(slug: IndustryKey) {
-  await ensureDemoData();
   const [organization] = await db.select().from(organizations).where(eq(organizations.slug, slug)).limit(1);
   if (!organization) throw new Error("Organization not found");
   return organization;
