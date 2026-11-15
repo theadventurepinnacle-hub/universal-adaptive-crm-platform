@@ -30,7 +30,7 @@ export function ContactsView({ data, onAdd, onView, onEdit, onDelete }: {
     return haystack.includes(query.toLowerCase()) && (segment === "All statuses" || contact.segment === segment);
   }), [data.customers, query, segment]);
 
-  const exportRows = () => downloadCsv("contacts.csv", [
+  const exportRows = () => downloadCsv("travellers.csv", [
     ["Name", "Company", "Email", "Phone", "Status", "Owner", "Value"],
     ...filtered.map((contact) => [contact.name, contact.company, contact.email, contact.phone, contact.segment, contact.owner, contact.totalValue]),
   ]);
@@ -39,23 +39,23 @@ export function ContactsView({ data, onAdd, onView, onEdit, onDelete }: {
     <div className="page">
       <PageHead
         eyebrow="RELATIONSHIPS"
-        title="Contacts"
-        subtitle={`${data.customers.length} contacts across ${data.companies.length} companies`}
-        actions={<><ExportButton onClick={exportRows} /><button className="btn btn-primary" onClick={onAdd}><Plus size={16} /> Add contact</button></>}
+        title="Travellers"
+        subtitle={`${data.customers.length} travellers across ${data.companies.length} travel partners`}
+        actions={<><ExportButton onClick={exportRows} /><button className="btn btn-primary" onClick={onAdd}><Plus size={16} /> Add traveller</button></>}
       />
 
       <section className="summary-row">
-        <div className="summary-card"><span className="summary-icon mint"><Users size={16} /></span><div><small>Total contacts</small><strong>{data.customers.length}</strong></div></div>
-        <div className="summary-card"><span className="summary-icon yellow"><Target size={16} /></span><div><small>Active relationships</small><strong>{data.customers.filter((contact) => contact.segment !== "Inactive").length}</strong></div></div>
+        <div className="summary-card"><span className="summary-icon mint"><Users size={16} /></span><div><small>Travellers</small><strong>{data.customers.length}</strong></div></div>
+        <div className="summary-card"><span className="summary-icon yellow"><Target size={16} /></span><div><small>Active travellers</small><strong>{data.customers.filter((contact) => contact.segment !== "Inactive").length}</strong></div></div>
         <div className="summary-card"><span className="summary-icon lilac"><Building2 size={16} /></span><div><small>Companies</small><strong>{data.companies.length}</strong></div></div>
         <div className="summary-card"><span className="summary-icon peach"><Wallet size={16} /></span><div><small>Lifetime value</small><strong>{money(data.customers.reduce((sum, contact) => sum + contact.totalValue, 0))}</strong></div></div>
       </section>
 
       <Card pad={false}>
         <div className="table-toolbar">
-          <label className="search-box"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search contacts, companies, email..." /></label>
+          <label className="search-box"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search travellers, partners, email..." /></label>
           <div className="toolbar-actions">
-            <SelectField ariaLabel="Filter contacts by status" value={segment} onChange={setSegment} options={["All statuses", "Active", "VIP", "Inactive", "New"].map((value) => ({ value, label: value }))} />
+            <SelectField ariaLabel="Filter travellers by status" value={segment} onChange={setSegment} options={["All statuses", "Active", "VIP", "Inactive", "New"].map((value) => ({ value, label: value }))} />
             <span className="badge badge-gray">{filtered.length} showing</span>
           </div>
         </div>
@@ -331,7 +331,7 @@ export function DealsView({ data, onAdd, onOpen, onStage }: {
     <div className="page">
       <PageHead
         eyebrow="DEAL MANAGEMENT"
-        title="Deals"
+        title="Trip Bookings"
         subtitle="Drag deals between stages, or update the stage from each card"
         actions={<>
           <div className="view-switch"><button className={mode === "board" ? "active" : ""} onClick={() => setMode("board")}><LayoutGrid size={14} /> Board</button><button className={mode === "list" ? "active" : ""} onClick={() => setMode("list")}><List size={14} /> List</button></div>
@@ -666,7 +666,7 @@ export function ReportsView({ data, onToast }: { data: WorkspaceData; onToast: (
       <section className="grid-main">
         <RevenueChart data={data} />
         <Card>
-          <CardHead title="Lead sources" subtitle="Distribution of acquired leads" />
+          <CardHead title="Enquiry sources" subtitle="Where traveller enquiries come from" />
           <SourceDonut data={data} compact />
           <div className="insight-list">
             {data.profile.insights.map((insight, index) => (

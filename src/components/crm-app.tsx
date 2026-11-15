@@ -25,8 +25,8 @@ type ViewKey = "dashboard" | "contacts" | "companies" | "leads" | "deals" | "pip
 type NavItem = { key: ViewKey; label: string; icon: LucideIcon; badge?: number };
 
 const pageTitles: Record<ViewKey, string> = {
-  dashboard: "Dashboard", contacts: "Contacts", companies: "Companies", leads: "Leads", deals: "Deals",
-  pipeline: "Sales Pipeline", tasks: "Tasks", calendar: "Calendar", reports: "Reports",
+  dashboard: "Dashboard", contacts: "Travellers", companies: "Travel Partners", leads: "Enquiries", deals: "Trip Bookings",
+  pipeline: "Booking Pipeline", tasks: "Tasks", calendar: "Calendar", reports: "Reports",
   quotations: "Quotations", payments: "Payments", settings: "Settings", more: "More",
 };
 
@@ -143,8 +143,8 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
   const unread = data.notifications.filter((notification) => !notification.isRead).length;
 
   const navGroups: Array<{ label: string; items: NavItem[] }> = [
-    { label: "OVERVIEW", items: [{ key: "dashboard", label: "Dashboard", icon: LayoutDashboard }, { key: "contacts", label: "Contacts", icon: Users }, { key: "companies", label: "Companies", icon: Building2 }] },
-    { label: "SALES", items: [{ key: "leads", label: "Leads", icon: Target, badge: data.leads.length }, { key: "deals", label: "Deals", icon: Handshake, badge: data.deals.length }, { key: "pipeline", label: "Sales Pipeline", icon: TrendingUp }] },
+    { label: "OVERVIEW", items: [{ key: "dashboard", label: "Dashboard", icon: LayoutDashboard }, { key: "contacts", label: "Travellers", icon: Users }, { key: "companies", label: "Travel Partners", icon: Building2 }] },
+    { label: "ENQUIRIES & BOOKINGS", items: [{ key: "leads", label: "Enquiries", icon: Target, badge: data.leads.length }, { key: "deals", label: "Trip Bookings", icon: Handshake, badge: data.deals.length }, { key: "pipeline", label: "Booking Pipeline", icon: TrendingUp }] },
     { label: "WORKSPACE", items: [{ key: "tasks", label: "Tasks", icon: ListChecks, badge: openTasks }, { key: "calendar", label: "Calendar", icon: CalendarDays }, { key: "reports", label: "Reports", icon: BarChart3 }] },
     { label: "FINANCE", items: [{ key: "quotations", label: "Quotations", icon: FileText }, { key: "payments", label: "Payments", icon: Wallet }] },
   ];
