@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import type { MaidView, WorkspaceData } from "@/lib/crm-types";
+import { MaidVoiceAssistant } from "@/components/maid-voice-assistant";
 import { Avatar, Card, CardHead, Empty, ExportButton, Field, Modal, PageHead, SelectField, Status, downloadCsv } from "@/components/ui";
 import { MapPin, Phone, Plus, Search, Sparkles, UserRound, Users } from "lucide-react";
 
@@ -78,6 +79,7 @@ export function MaidDirectoryView({ data, onSave }: {
         subtitle="Keep worker contact details, service skills, local availability and work notes in one place."
         actions={<><ExportButton onClick={exportCsv} /><button className="btn btn-primary" onClick={openNew}><Plus size={16} /> Add staff member</button></>}
       />
+      <MaidVoiceAssistant data={data} onSave={onSave} />
       <section className="summary-row">
         <div className="summary-card"><span className="summary-icon mint"><Users size={16} /></span><div><small>Total staff profiles</small><strong>{data.maids.length}</strong></div></div>
         <div className="summary-card"><span className="summary-icon yellow"><UserRound size={16} /></span><div><small>Availability confirmed</small><strong>{availableCount}</strong></div></div>
