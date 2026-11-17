@@ -11,6 +11,7 @@ import {
   notifications,
   organizations,
   payments,
+  placementDetails,
   pipelines,
   pipelineStages,
   quotations,
@@ -36,7 +37,7 @@ export async function getWorkspaceData(slug: IndustryKey = "adventure"): Promise
     const [organization] = await db.select().from(organizations).where(eq(organizations.slug, slug)).limit(1);
     if (!organization) throw new Error("The Adventure Pinnacle workspace is not configured");
 
-    const [userRows, pipelineRows, customerRows, dealRows, leadRows, taskRows, paymentRows, quoteRows, activityRows, notificationRows] = await Promise.all([
+    const [userRows, pipelineRows, customerRows, dealRows, leadRows, taskRows, paymentRows, quoteRows, activityRows, notificationRows, placementRows] = await Promise.all([
       db.select().from(users).where(eq(users.organizationId, organization.id)).orderBy(asc(users.id)),
       db.select().from(pipelines).where(and(eq(pipelines.organizationId, organization.id), eq(pipelines.isDefault, true))).limit(1),
       db.select().from(customers).where(eq(customers.organizationId, organization.id)).orderBy(desc(customers.lastContactAt)),
@@ -47,6 +48,7 @@ export async function getWorkspaceData(slug: IndustryKey = "adventure"): Promise
       db.select().from(quotations).where(eq(quotations.organizationId, organization.id)).orderBy(desc(quotations.createdAt)),
       db.select().from(activities).where(eq(activities.organizationId, organization.id)).orderBy(desc(activities.createdAt)),
       db.select().from(notifications).where(eq(notifications.organizationId, organization.id)).orderBy(desc(notifications.createdAt)),
+      db.select().from(placementDetails).where(eq(placementDetails.organizationId, organization.id)).orderBy(desc(placementDetails.createdAt)),
     ]);
 
     const pipeline = pipelineRows[0];
@@ -57,6 +59,7 @@ export async function getWorkspaceData(slug: IndustryKey = "adventure"): Promise
     const stageById = new Map(stageRows.map((stage) => [stage.id, stage]));
     const customerById = new Map(customerRows.map((customer) => [customer.id, customer]));
     const leadById = new Map(leadRows.map((lead) => [lead.id, lead]));
+    const placementByDealId = new Map(placementRows.map((placement) => [placement.dealId, placement]));
     const team = userRows.map((user) => ({
       id: user.id,
       name: user.name,
@@ -137,6 +140,8 @@ export async function getWorkspaceData(slug: IndustryKey = "adventure"): Promise
       const stage = stageById.get(deal.stageId);
       const owner = deal.ownerId ? userById.get(deal.ownerId) : null;
       const contact = deal.contactId ? customerById.get(deal.contactId) : null;
+      const placement = placementByDealId.get(deal.id);
+      const maid = placement?.maidId ? customerById.get(placement.maidId) : null;
       return {
         id: deal.id,
         title: deal.title,
@@ -153,6 +158,14 @@ export async function getWorkspaceData(slug: IndustryKey = "adventure"): Promise
         priority: deal.priority,
         probability: deal.probability,
         source: deal.source,
+        maidId: placement?.maidId ?? null,
+        maidName: maid?.name ?? "",
+        startAt: placement?.startAt?.toISOString() ?? null,
+        schedule: placement?.schedule ?? "",
+        workerPay: placement?.workerPay ?? 0,
+        clientFee: placement?.clientFee ?? deal.value,
+        placementStatus: placement?.status ?? "",
+        placementNotes: placement?.notes ?? "",
       };
     });
 
@@ -512,6 +525,21 @@ export async function createDeal(input: CreateDealInput) {
   const [pipeline] = await db.select().from(pipelines).where(and(eq(pipelines.id, stage.pipelineId), eq(pipelines.organizationId, organization.id))).limit(1);
   if (!pipeline) throw new Error("Stage does not belong to this workspace");
   const [owner] = await db.select().from(users).where(and(eq(users.organizationId, organization.id), ne(users.role, "owner"))).orderBy(asc(users.id)).limit(1);
+
+  if (input.organizationSlug === "homigo") {
+    if (!input.maidId) throw new Error("Select a maid for this placement");
+    const [maid] = await db.select().from(customers).where(and(eq(customers.id, input.maidId), eq(customers.organizationId, organization.id))).limit(1);
+    if (!maid || maid.customData?.record_type !== "staff") throw new Error("Selected maid profile was not found");
+    if (input.contactId) {
+      const [client] = await db.select().from(customers).where(and(eq(customers.id, input.contactId), eq(customers.organizationId, organization.id))).limit(1);
+      if (!client || client.customData?.record_type === "staff") throw new Error("Selected client record was not found");
+    }
+    if (input.serviceRequestId) {
+      const [request] = await db.select().from(leads).where(and(eq(leads.id, input.serviceRequestId), eq(leads.organizationId, organization.id))).limit(1);
+      if (!request) throw new Error("Selected service request was not found");
+    }
+  }
+
   const [deal] = await db.insert(deals).values({
     organizationId: organization.id,
     contactId: input.contactId,
@@ -525,9 +553,27 @@ export async function createDeal(input: CreateDealInput) {
     source: input.source,
     expectedCloseAt: new Date(input.expectedCloseAt),
   }).returning();
+
+  if (input.organizationSlug === "homigo" && input.maidId) {
+    await db.insert(placementDetails).values({
+      organizationId: organization.id,
+      dealId: deal.id,
+      maidId: input.maidId,
+      clientId: input.contactId,
+      serviceRequestId: input.serviceRequestId ?? null,
+      startAt: input.startAt ? new Date(input.startAt) : new Date(input.expectedCloseAt),
+      schedule: input.schedule?.trim() || "To be confirmed",
+      workerPay: Math.max(0, input.workerPay ?? 0),
+      clientFee: Math.max(0, input.clientFee ?? input.value),
+      status: "Scheduled",
+      notes: input.placementNotes?.trim() || "",
+    });
+  }
+
   await db.insert(activities).values({
     organizationId: organization.id, actorId: owner?.id ?? null, customerId: input.contactId,
-    type: "deal", title: "Deal created", detail: `${deal.title} added to ${stage.name}`,
+    type: "deal", title: input.organizationSlug === "homigo" ? "Maid placement created" : "Deal created",
+    detail: `${deal.title} added to ${stage.name}`,
   });
   return getWorkspaceData(input.organizationSlug);
 }
