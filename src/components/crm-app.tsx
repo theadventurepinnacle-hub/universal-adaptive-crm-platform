@@ -6,6 +6,7 @@ import {
   LeadDrawer, NotificationsPanel, QuickAddModal,
 } from "@/components/overlays";
 import { Avatar } from "@/components/ui";
+import { MaidDirectoryView } from "@/components/maid-directory";
 import {
   CalendarView, CompaniesView, ContactsView, DealsView, LeadsView, MoreView, PaymentsView, PipelineView,
   QuotationsView, ReportsView, SettingsView, TasksView,
@@ -20,20 +21,20 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
-type ViewKey = "dashboard" | "contacts" | "companies" | "leads" | "deals" | "pipeline" | "tasks" | "calendar" | "reports" | "quotations" | "payments" | "settings" | "more";
+type ViewKey = "dashboard" | "contacts" | "maids" | "companies" | "leads" | "deals" | "pipeline" | "tasks" | "calendar" | "reports" | "quotations" | "payments" | "settings" | "more";
 
 type NavItem = { key: ViewKey; label: string; icon: LucideIcon; badge?: number };
 
 const pageTitles: Record<ViewKey, string> = {
-  dashboard: "Dashboard", contacts: "Travellers", companies: "Travel Partners", leads: "Enquiries", deals: "Trip Bookings",
-  pipeline: "Booking Pipeline", tasks: "Tasks", calendar: "Calendar", reports: "Reports",
-  quotations: "Quotations", payments: "Payments", settings: "Settings", more: "More",
+  dashboard: "Dashboard", contacts: "Clients", maids: "Maid Directory", companies: "Partner Accounts", leads: "Service Requests", deals: "Placements",
+  pipeline: "Placement Pipeline", tasks: "Tasks & Follow-ups", calendar: "Schedule", reports: "Reports",
+  quotations: "Service Agreements", payments: "Payments & Dues", settings: "Settings", more: "More",
 };
 
 const industryIcons: Record<string, LucideIcon> = { shield: ShieldCheck, refresh: RefreshCw, file: FileText, wallet: Wallet, building: Building2, calendar: CalendarDays, key: KeyRound, grid: LayoutGrid, package: Package, boxes: Boxes, bag: FileText, truck: Truck };
 
-function Logo({ compact = false }: { compact?: boolean }) {
-  return <div className="brand"><span className="brand-mark"><Mountain size={17} strokeWidth={2.2} /></span>{!compact && <span className="brand-text">The Adventure Pinnacle</span>}</div>;
+function Logo({ compact = false, brandName = "HOMIGO" }: { compact?: boolean; brandName?: string }) {
+  return <div className="brand"><span className="brand-mark"><Mountain size={17} strokeWidth={2.2} /></span>{!compact && <span className="brand-text">{brandName}</span>}</div>;
 }
 
 export default function CrmApp({ initialData }: { initialData: WorkspaceData }) {
@@ -113,9 +114,10 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
   };
   const collect = (id: number) => { void mutate({ action: "collectPayment", id }, "Payment marked as collected"); };
   const saveContact = async (payload: Record<string, unknown>) => {
-    const success = await mutate(payload, payload.action === "createContact" ? "Contact added" : "Contact updated");
+    const success = await mutate(payload, payload.action === "createContact" ? "Client added" : "Client updated");
     if (success) setContactModal(null);
   };
+  const saveMaid = async (payload: Record<string, unknown>, success: string) => mutate(payload, success);
   const saveDeal = async (payload: Record<string, unknown>) => {
     const success = await mutate(payload, "Deal added to pipeline");
     if (success) setDealModal(false);
@@ -143,10 +145,10 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
   const unread = data.notifications.filter((notification) => !notification.isRead).length;
 
   const navGroups: Array<{ label: string; items: NavItem[] }> = [
-    { label: "OVERVIEW", items: [{ key: "dashboard", label: "Dashboard", icon: LayoutDashboard }, { key: "contacts", label: "Travellers", icon: Users }, { key: "companies", label: "Travel Partners", icon: Building2 }] },
-    { label: "ENQUIRIES & BOOKINGS", items: [{ key: "leads", label: "Enquiries", icon: Target, badge: data.leads.length }, { key: "deals", label: "Trip Bookings", icon: Handshake, badge: data.deals.length }, { key: "pipeline", label: "Booking Pipeline", icon: TrendingUp }] },
-    { label: "WORKSPACE", items: [{ key: "tasks", label: "Tasks", icon: ListChecks, badge: openTasks }, { key: "calendar", label: "Calendar", icon: CalendarDays }, { key: "reports", label: "Reports", icon: BarChart3 }] },
-    { label: "FINANCE", items: [{ key: "quotations", label: "Quotations", icon: FileText }, { key: "payments", label: "Payments", icon: Wallet }] },
+    { label: "OVERVIEW", items: [{ key: "dashboard", label: "Dashboard", icon: LayoutDashboard }, { key: "contacts", label: "Clients", icon: Users }, { key: "maids", label: "Maid Directory", icon: ShieldCheck, badge: data.maids.length }, { key: "companies", label: "Partner Accounts", icon: Building2 }] },
+    { label: "SERVICE OPERATIONS", items: [{ key: "leads", label: "Service Requests", icon: Target, badge: data.leads.length }, { key: "deals", label: "Placements", icon: Handshake, badge: data.deals.length }, { key: "pipeline", label: "Placement Pipeline", icon: TrendingUp }] },
+    { label: "WORKSPACE", items: [{ key: "tasks", label: "Tasks & Follow-ups", icon: ListChecks, badge: openTasks }, { key: "calendar", label: "Attendance & Schedule", icon: CalendarDays }, { key: "reports", label: "Reports", icon: BarChart3 }] },
+    { label: "FINANCE", items: [{ key: "quotations", label: "Service Agreements", icon: FileText }, { key: "payments", label: "Payments & Dues", icon: Wallet }] },
   ];
 
   const profileMenuContent = (
@@ -161,7 +163,7 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
       {sidebarOpen && <button className="sidebar-scrim" onClick={() => setSidebarOpen(false)} aria-label="Close navigation" />}
       <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-head">
-          <Logo />
+          <Logo brandName={data.organization.name} />
           <button className="icon-btn sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Close menu"><X size={17} /></button>
         </div>
 
@@ -178,7 +180,7 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
               <p className="nav-label">{group.label}</p>
               {group.items.map((item) => (
                 <button key={item.key} className={`nav-item ${view === item.key ? "active" : ""}`} onClick={() => navigate(item.key)}>
-                  <item.icon size={17} /><span>{item.key === "leads" ? "Leads" : item.label}</span>
+                  <item.icon size={17} /><span>{item.label}</span>
                   {!!item.badge && <em className="nav-badge">{item.badge}</em>}
                 </button>
               ))}
@@ -187,7 +189,8 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
           <p className="nav-label">{data.organization.industry.toUpperCase()}</p>
           {data.profile.modules.map((module) => {
             const Icon = industryIcons[module.icon] ?? Package;
-            return <button key={module.label} className="nav-item" onClick={() => { navigate("more"); showToast(`${module.label} module opened`); }}><Icon size={17} /><span>{module.label}</span><ChevronRight size={13} className="nav-chev" /></button>;
+            const moduleView: Record<string, ViewKey> = { "Maid Directory": "maids", "Service Requests": "leads", "Placements": "deals", "Attendance & Schedule": "calendar" };
+            return <button key={module.label} className={`nav-item ${view === moduleView[module.label] ? "active" : ""}`} onClick={() => moduleView[module.label] ? navigate(moduleView[module.label]) : navigate("more")}><Icon size={17} /><span>{module.label}</span><ChevronRight size={13} className="nav-chev" /></button>;
           })}
         </nav>
 
@@ -206,7 +209,7 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
         <header className="topbar">
           <div className="top-left">
             <button className="icon-btn menu-btn" onClick={() => setSidebarOpen(true)} aria-label="Open navigation"><Menu size={19} /></button>
-            <button className="mobile-brand" onClick={() => navigate("dashboard")}><Logo compact /><span className="mobile-org">{data.organization.name}</span></button>
+            <button className="mobile-brand" onClick={() => navigate("dashboard")}><Logo compact brandName={data.organization.name} /><span className="mobile-org">{data.organization.name}</span></button>
             <button className="top-search" onClick={() => setSearchOpen(true)}><Search size={16} /><span>Search here...</span><kbd>⌘ K</kbd></button>
           </div>
           <h1 className="top-title">{pageTitles[view]}</h1>
@@ -235,6 +238,7 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
             />
           )}
           {view === "contacts" && <ContactsView data={data} onAdd={() => setContactModal({ contact: null })} onView={(contact) => setSelectedContactId(contact.id)} onEdit={(contact) => setContactModal({ contact })} onDelete={setDeleteTarget} />}
+          {view === "maids" && <MaidDirectoryView data={data} onSave={saveMaid} />}
           {view === "companies" && <CompaniesView data={data} onView={(company) => setSelectedCompanyId(company.id)} onToast={showToast} />}
           {view === "leads" && <LeadsView data={data} onAdd={() => setQuickAdd("lead")} onView={(lead) => setSelectedLeadId(lead.id)} onAssign={assignLead} onStage={stageLead} onAction={quickAction} />}
           {view === "deals" && <DealsView data={data} onAdd={() => setDealModal(true)} onOpen={(deal) => { if (deal.contactId) setSelectedContactId(deal.contactId); else showToast(`${deal.title} · ${deal.stage}`); }} onStage={(deal, stageId) => moveDeal(deal, stageId)} />}
@@ -250,7 +254,7 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
       </div>
 
       <nav className="bottom-nav">
-        {[{ key: "dashboard" as const, label: "Home", icon: LayoutDashboard }, { key: "contacts" as const, label: "Contacts", icon: Users }, { key: "deals" as const, label: "Deals", icon: Handshake }, { key: "tasks" as const, label: "Tasks", icon: ListChecks }, { key: "more" as const, label: "More", icon: LayoutGrid }].map((item) => (
+        {[{ key: "dashboard" as const, label: "Home", icon: LayoutDashboard }, { key: "contacts" as const, label: "Clients", icon: Users }, { key: "maids" as const, label: "Maids", icon: ShieldCheck }, { key: "tasks" as const, label: "Tasks", icon: ListChecks }, { key: "more" as const, label: "More", icon: LayoutGrid }].map((item) => (
           <button key={item.key} className={view === item.key ? "active" : ""} onClick={() => navigate(item.key)}><item.icon size={19} /><span>{item.label}</span></button>
         ))}
       </nav>
