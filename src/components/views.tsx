@@ -166,13 +166,14 @@ export function CompaniesView({ data, onView, onToast }: { data: WorkspaceData; 
 
 /* ---------------------------------- leads ----------------------------------- */
 
-export function LeadsView({ data, onAdd, onView, onAssign, onStage, onAction }: {
+export function LeadsView({ data, onAdd, onView, onAssign, onStage, onAction, onDelete }: {
   data: WorkspaceData;
   onAdd: () => void;
   onView: (lead: LeadView) => void;
   onAssign: (lead: LeadView, userId: number) => void;
   onStage: (lead: LeadView, stageId: number) => void;
   onAction: (lead: LeadView, action: string) => void;
+  onDelete: (lead: LeadView) => void;
 }) {
   const [query, setQuery] = useState("");
   const [stage, setStage] = useState("All stages");
@@ -238,6 +239,7 @@ export function LeadsView({ data, onAdd, onView, onAssign, onStage, onAction }: 
                     <button className="icon-action" onClick={() => onAction(lead, "call")} aria-label={`Call ${lead.name}`}><Phone size={14} /></button>
                     <button className="icon-action whatsapp" onClick={() => onAction(lead, "whatsapp")} aria-label={`WhatsApp ${lead.name}`}><MessageCircle size={14} /></button>
                     <button className="icon-action" onClick={() => onView(lead)} aria-label={`Open ${lead.name}`}><Eye size={14} /></button>
+                    <button className="icon-action danger-text" onClick={() => onDelete(lead)} aria-label={`Delete ${lead.name} request`} title="Delete service request"><Trash2 size={14} /></button>
                   </div></td>
                 </tr>
               ))}
@@ -261,6 +263,7 @@ export function LeadsView({ data, onAdd, onView, onAssign, onStage, onAction }: 
                 <button className="btn btn-secondary btn-sm" onClick={() => onAction(lead, "call")}><Phone size={13} /> Call</button>
                 <button className="btn btn-secondary btn-sm" onClick={() => onAction(lead, "whatsapp")}><MessageCircle size={13} /> WhatsApp</button>
                 <button className="btn btn-primary btn-sm" onClick={() => onView(lead)}>Open</button>
+                <button className="btn btn-secondary btn-sm danger-text" onClick={() => onDelete(lead)}><Trash2 size={13} /> Delete</button>
               </div>
             </div>
           ))}
@@ -274,11 +277,12 @@ export function LeadsView({ data, onAdd, onView, onAssign, onStage, onAction }: 
 
 /* ----------------------------------- deals ---------------------------------- */
 
-function DealCard({ deal, stages, onOpen, onStage, onDragStart, onDragEnd, dragging }: {
+function DealCard({ deal, stages, onOpen, onStage, onDelete, onDragStart, onDragEnd, dragging }: {
   deal: DealView;
   stages: StageView[];
   onOpen: () => void;
   onStage: (stageId: number) => void;
+  onDelete: () => void;
   onDragStart: () => void;
   onDragEnd: () => void;
   dragging: boolean;
@@ -290,7 +294,7 @@ function DealCard({ deal, stages, onOpen, onStage, onDragStart, onDragEnd, dragg
       onDragStart={(event) => { event.dataTransfer.setData("text/plain", String(deal.id)); event.dataTransfer.effectAllowed = "move"; onDragStart(); }}
       onDragEnd={onDragEnd}
     >
-      <div className="deal-top"><Priority value={deal.priority} /><button className="drag-handle" aria-label="Drag deal"><LayoutGrid size={13} /></button></div>
+      <div className="deal-top"><Priority value={deal.priority} /><div className="toolbar-actions"><button type="button" className="icon-action danger-text" aria-label={`Delete ${deal.title}`} title="Delete placement" onClick={onDelete}><Trash2 size={13} /></button><button className="drag-handle" aria-label="Drag deal"><LayoutGrid size={13} /></button></div></div>
       <button className="deal-title" onClick={onOpen}>{deal.title}</button>
       <p className="deal-company"><Building2 size={12} />{deal.company || deal.contact}</p>
       {deal.maidName && <p className="deal-company"><Users size={12} />Maid: {deal.maidName}</p>}
@@ -309,11 +313,12 @@ function DealCard({ deal, stages, onOpen, onStage, onDragStart, onDragEnd, dragg
   );
 }
 
-export function DealsView({ data, onAdd, onOpen, onStage }: {
+export function DealsView({ data, onAdd, onOpen, onStage, onDelete }: {
   data: WorkspaceData;
   onAdd: () => void;
   onOpen: (deal: DealView) => void;
   onStage: (deal: DealView, stageId: number) => void;
+  onDelete: (deal: DealView) => void;
 }) {
   const [mode, setMode] = useState<"board" | "list">("board");
   const [draggingId, setDraggingId] = useState<number | null>(null);
@@ -372,6 +377,7 @@ export function DealsView({ data, onAdd, onOpen, onStage }: {
                       stages={data.stages}
                       onOpen={() => onOpen(deal)}
                       onStage={(stageId) => onStage(deal, stageId)}
+                      onDelete={() => onDelete(deal)}
                       onDragStart={() => setDraggingId(deal.id)}
                       onDragEnd={() => { setDraggingId(null); setDragOverStage(null); }}
                       dragging={draggingId === deal.id}
@@ -387,7 +393,7 @@ export function DealsView({ data, onAdd, onOpen, onStage }: {
         <Card pad={false}>
           <div className="table-wrap">
             <table className="data-table">
-              <thead><tr><th>{data.profile.dealLabel || "Deal"}</th><th>Stage</th><th>{data.organization.slug === "homigo" ? "Client / property" : "Company"}</th><th>Value</th><th>Probability</th><th>{data.organization.slug === "homigo" ? "Start date" : "Expected close"}</th><th>Owner</th><th>Priority</th></tr></thead>
+              <thead><tr><th>{data.profile.dealLabel || "Deal"}</th><th>Stage</th><th>{data.organization.slug === "homigo" ? "Client / property" : "Company"}</th>{data.organization.slug === "homigo" && <th>Assigned maid</th>}<th>Value</th><th>{data.organization.slug === "homigo" ? "Placement status" : "Probability"}</th><th>{data.organization.slug === "homigo" ? "Start date" : "Expected close"}</th><th>Owner</th><th>Priority</th><th /></tr></thead>
               <tbody>
                 {data.deals.map((deal) => (
                   <tr key={deal.id} className="clickable" onClick={() => onOpen(deal)}>
@@ -400,6 +406,7 @@ export function DealsView({ data, onAdd, onOpen, onStage }: {
                     <td className="muted">{shortDate(deal.startAt || deal.expectedCloseAt)}</td>
                     <td>{deal.owner.split(" ")[0]}</td>
                     <td><Priority value={deal.priority} /></td>
+                    <td><button type="button" className="icon-action danger-text" aria-label={`Delete ${deal.title}`} title="Delete placement" onClick={(event) => { event.stopPropagation(); onDelete(deal); }}><Trash2 size={14} /></button></td>
                   </tr>
                 ))}
               </tbody>
@@ -938,14 +945,28 @@ export function QuotationsView({ data, onToast }: { data: WorkspaceData; onToast
   );
 }
 
-export function PaymentsView({ data, onCollect }: { data: WorkspaceData; onCollect: (id: number) => void }) {
+export function PaymentsView({ data, onCollect, onAddClient, onNewInvoice }: {
+  data: WorkspaceData;
+  onCollect: (id: number) => void;
+  onAddClient: () => void;
+  onNewInvoice: () => void;
+}) {
+  const [newMenuOpen, setNewMenuOpen] = useState(false);
   const total = data.payments.reduce((sum, payment) => sum + payment.totalAmount, 0);
   const paid = data.payments.reduce((sum, payment) => sum + payment.paidAmount, 0);
   const overdue = data.payments.filter((payment) => payment.status === "Overdue").reduce((sum, payment) => sum + payment.totalAmount - payment.paidAmount, 0);
+  const hasCollection = data.payments.some((payment) => payment.status !== "Paid" && payment.totalAmount > payment.paidAmount);
 
   return (
     <div className="page">
-      <PageHead eyebrow="FINANCE" title="Payments" subtitle="Collections, outstanding balances and overdue reminders" actions={<button className="btn btn-primary" onClick={() => onCollect(data.payments.find((payment) => payment.status !== "Paid")?.id ?? 0)}><CircleDollarSign size={16} /> Record payment</button>} />
+      <PageHead eyebrow="FINANCE" title="Payments" subtitle="Clients, manual invoices, collections and outstanding balances" actions={<div className="toolbar-actions">
+        <button className="btn btn-secondary" type="button" onClick={() => setNewMenuOpen((open) => !open)}><Plus size={16} /> New</button>
+        {newMenuOpen && <>
+          <button className="btn btn-secondary" type="button" onClick={() => { setNewMenuOpen(false); onAddClient(); }}><Users size={15} /> Add client</button>
+          <button className="btn btn-secondary" type="button" onClick={() => { setNewMenuOpen(false); onNewInvoice(); }}><ReceiptText size={15} /> New invoice</button>
+        </>}
+        <button className="btn btn-primary" type="button" disabled={!hasCollection} onClick={() => onCollect(data.payments.find((payment) => payment.status !== "Paid" && payment.totalAmount > payment.paidAmount)?.id ?? 0)}><CircleDollarSign size={16} /> Record payment</button>
+      </div>} />
       <section className="summary-row">
         <div className="summary-card"><span className="summary-icon yellow"><ReceiptText size={16} /></span><div><small>Total billed</small><strong>{money(total)}</strong></div></div>
         <div className="summary-card"><span className="summary-icon mint"><Check size={16} /></span><div><small>Collected</small><strong>{money(paid)}</strong></div></div>
