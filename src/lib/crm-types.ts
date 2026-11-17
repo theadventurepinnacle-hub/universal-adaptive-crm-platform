@@ -56,7 +56,21 @@ export type LeadView = {
   createdAt: string;
 };
 
-export type MaidView = {\n  id: number;\n  name: string;\n  phone: string;\n  age: string;\n  location: string;\n  serviceTypes: string;\n  availability: string;\n  workNotes: string;\n  verificationNote: string;\n  source: string;\n  avatar: string;\n};\n\nexport type CustomerView = {
+export type MaidView = {
+  id: number;
+  name: string;
+  phone: string;
+  age: string;
+  location: string;
+  serviceTypes: string;
+  availability: string;
+  workNotes: string;
+  verificationNote: string;
+  source: string;
+  avatar: string;
+};
+
+export type CustomerView = {
   id: number;
   name: string;
   company: string;
