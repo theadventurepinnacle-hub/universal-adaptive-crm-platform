@@ -7,7 +7,7 @@ import type { CompanyView, CustomerView, DealView, LeadView, WorkspaceData } fro
 import {
   ArrowLeft, ArrowRight, Bell, Bot, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight,
   CircleDollarSign, Mail, MessageCircle, NotebookPen, Phone, Plus, Search, Send, Sparkles, Target,
-  UserRound, Wallet, X,
+  UserRound, Wallet, X, Printer, ReceiptText,
 } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 
@@ -358,6 +358,7 @@ export function ManualInvoiceModal({ data, onClose, onSave }: {
   onSave: (payload: Record<string, unknown>) => Promise<void>;
 }) {
   const [saving, setSaving] = useState(false);
+  const [clientMode, setClientMode] = useState<"existing" | "new">(data.customers.length ? "existing" : "new");
   const [dueDate] = useState(() => {
     const date = new Date();
     date.setDate(date.getDate() + 7);
@@ -369,7 +370,14 @@ export function ManualInvoiceModal({ data, onClose, onSave }: {
     const values = Object.fromEntries(new FormData(event.currentTarget).entries());
     await onSave({
       action: "createManualInvoice",
-      customerId: Number(values.customerId),
+      ...(clientMode === "existing"
+        ? { customerId: Number(values.customerId) }
+        : { newCustomer: {
+            name: String(values.clientName || ""),
+            phone: String(values.clientPhone || ""),
+            email: String(values.clientEmail || ""),
+            address: String(values.clientAddress || ""),
+          } }),
       description: String(values.description || ""),
       totalAmount: Number(values.totalAmount || 0),
       paidAmount: Number(values.paidAmount || 0),
@@ -379,25 +387,116 @@ export function ManualInvoiceModal({ data, onClose, onSave }: {
   };
   return (
     <Modal
-      title="Create manual invoice"
-      subtitle="Create an invoice for an existing HOMIGO client. Any advance received is recorded against the invoice."
+      title="Create invoice"
+      subtitle="Add a new client or choose an existing client, enter the service price and record any advance received."
       onClose={onClose}
       wide
-      footer={<><button className="btn btn-secondary" type="button" onClick={onClose}>Cancel</button><button className="btn btn-primary" type="submit" form="manual-invoice-form" disabled={saving}>{saving ? <span className="spinner" /> : <Plus size={15} />} Create invoice</button></>}
+      footer={<><button className="btn btn-secondary" type="button" onClick={onClose}>Cancel</button><button className="btn btn-primary" type="submit" form="manual-invoice-form" disabled={saving}>{saving ? <span className="spinner" /> : <ReceiptText size={15} />} Save &amp; create invoice</button></>}
     >
       <form id="manual-invoice-form" onSubmit={submit} className="form-grid">
-        <Field label="Client" required>
-          <select name="customerId" required defaultValue="">
-            <option value="">Select client</option>
-            {data.customers.map((client) => <option key={client.id} value={client.id}>{client.name} · {client.phone}</option>)}
+        <div className="field full">
+          <span className="field-label">Client details</span>
+          <div className="segmented">
+            <button type="button" className={clientMode === "existing" ? "active" : ""} onClick={() => setClientMode("existing")} disabled={!data.customers.length}>Existing client</button>
+            <button type="button" className={clientMode === "new" ? "active" : ""} onClick={() => setClientMode("new")}>Add new client</button>
+          </div>
+        </div>
+        {clientMode === "existing" ? (
+          <Field label="Select client" required>
+            <select name="customerId" required defaultValue="">
+              <option value="">Select client</option>
+              {data.customers.map((client) => <option key={client.id} value={client.id}>{client.name} · {client.phone}</option>)}
+            </select>
+          </Field>
+        ) : (
+          <>
+            <Field label="Client name" required><input name="clientName" required placeholder="Customer full name" /></Field>
+            <Field label="Phone number" required><input name="clientPhone" type="tel" required placeholder="+91 98765 43210" /></Field>
+            <Field label="Email address"><input name="clientEmail" type="email" placeholder="customer@example.com" /></Field>
+            <Field label="Service address"><input name="clientAddress" placeholder="House / building, place" /></Field>
+          </>
+        )}
+        <div className="field full"><span className="field-label">Service &amp; invoice</span></div>
+        <Field label="Service / work description" required><input name="description" required placeholder="e.g. One-time normal cleaning – 8 rooms" /></Field>
+        <Field label="Total service price (₹)" required><input name="totalAmount" type="number" min="1" step="1" required placeholder="5000" /></Field>
+        <Field label="Amount received now (₹)" hint="Enter 0 if the client has not paid yet."><input name="paidAmount" type="number" min="0" step="1" defaultValue="0" placeholder="0" /></Field>
+        <Field label="Balance due date" required><input name="dueAt" type="date" required defaultValue={dueDate} /></Field>
+        <div className="field full"><span className="field-label">Invoice summary</span><small className="muted-note">Saving creates the client (if new), adds the full service value to that client's record, updates the Payments &amp; Dues totals and dashboard, and prepares a printable invoice.</small></div>
+      </form>
+    </Modal>
+  );
+}
+
+export function RecordPaymentModal({ data, initialPaymentId, onClose, onSave }: {
+  data: WorkspaceData;
+  initialPaymentId?: number | null;
+  onClose: () => void;
+  onSave: (payload: Record<string, unknown>) => Promise<void>;
+}) {
+  const openInvoices = data.payments.filter((payment) => payment.totalAmount > payment.paidAmount);
+  const [paymentId, setPaymentId] = useState(String(initialPaymentId ?? openInvoices[0]?.id ?? ""));
+  const selected = data.payments.find((payment) => payment.id === Number(paymentId));
+  const [saving, setSaving] = useState(false);
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selected) return;
+    setSaving(true);
+    const values = Object.fromEntries(new FormData(event.currentTarget).entries());
+    await onSave({
+      action: "recordPayment",
+      paymentId: selected.id,
+      amount: Number(values.amount || 0),
+      method: String(values.method || "Cash"),
+      note: String(values.note || ""),
+    });
+    setSaving(false);
+  };
+  return (
+    <Modal title="Record payment" subtitle="Enter the amount received. Partial payments automatically update the invoice balance and dashboard." onClose={onClose}
+      footer={<><button className="btn btn-secondary" type="button" onClick={onClose}>Cancel</button><button className="btn btn-primary" type="submit" form="record-payment-form" disabled={saving || !selected}>{saving ? <span className="spinner" /> : <CircleDollarSign size={15} />} Save payment</button></>}>
+      <form id="record-payment-form" className="form-grid" onSubmit={submit}>
+        <Field label="Invoice / client" required>
+          <select value={paymentId} onChange={(event) => setPaymentId(event.target.value)} required>
+            <option value="">Select invoice</option>
+            {openInvoices.map((payment) => <option key={payment.id} value={payment.id}>{payment.customer} · {payment.reference} · Balance ₹{(payment.totalAmount-payment.paidAmount).toLocaleString("en-IN")}</option>)}
           </select>
         </Field>
-        <Field label="Invoice description" required><input name="description" required placeholder="e.g. Monthly full-time maid service" /></Field>
-        <Field label="Invoice amount (₹)" required><input name="totalAmount" type="number" min="1" step="1" required placeholder="15000" /></Field>
-        <Field label="Advance received (₹)"><input name="paidAmount" type="number" min="0" step="1" defaultValue="0" placeholder="0" /></Field>
-        <Field label="Payment due date" required><input name="dueAt" type="date" required defaultValue={dueDate} /></Field>
-        <div className="field full"><span className="field-label">Invoice note</span><small className="muted-note">The invoice reference is generated automatically. The unpaid balance will appear in Payments &amp; Dues, where you can record the remaining payment later.</small></div>
+        {selected && <div className="field full payment-entry-summary">
+          <span><small>Invoice total</small><strong>₹{selected.totalAmount.toLocaleString("en-IN")}</strong></span>
+          <span><small>Already received</small><strong>₹{selected.paidAmount.toLocaleString("en-IN")}</strong></span>
+          <span><small>Balance</small><strong>₹{(selected.totalAmount-selected.paidAmount).toLocaleString("en-IN")}</strong></span>
+        </div>}
+        <Field label="Amount received now (₹)" required><input name="amount" type="number" min="1" max={selected ? selected.totalAmount-selected.paidAmount : undefined} step="1" required defaultValue={selected ? selected.totalAmount-selected.paidAmount : ""} /></Field>
+        <Field label="Payment method"><select name="method" defaultValue="Cash"><option>Cash</option><option>UPI</option><option>Bank transfer</option><option>Card</option><option>Other</option></select></Field>
+        <Field label="Payment note"><input name="note" placeholder="Optional transaction reference / note" /></Field>
       </form>
+    </Modal>
+  );
+}
+
+export function InvoicePreviewModal({ organizationName, payment, onClose }: {
+  organizationName: string;
+  payment: WorkspaceData["payments"][number];
+  onClose: () => void;
+}) {
+  const balance = payment.totalAmount - payment.paidAmount;
+  const printInvoice = () => window.print();
+  return (
+    <Modal title="Invoice preview" subtitle={payment.reference + " · Ready to print or save as PDF"} onClose={onClose} wide
+      footer={<><button className="btn btn-secondary" type="button" onClick={onClose}>Close</button><button className="btn btn-primary" type="button" onClick={printInvoice}><Printer size={15} /> Print / Save PDF</button></>}>
+      <article className="invoice-print-sheet">
+        <header className="invoice-print-header">
+          <div><span className="invoice-brand-mark">H</span><div><h1>{organizationName}</h1><p>Service invoice</p></div></div>
+          <div className="invoice-heading"><small>INVOICE</small><strong>{payment.reference}</strong><span>{new Date().toLocaleDateString("en-IN")}</span></div>
+        </header>
+        <div className="invoice-parties">
+          <div><small>BILL TO</small><strong>{payment.customer}</strong>{payment.customerPhone && <span>{payment.customerPhone}</span>}{payment.customerEmail && <span>{payment.customerEmail}</span>}{payment.customerAddress && <span>{payment.customerAddress}</span>}</div>
+          <div><small>PAYMENT DUE</small><strong>{formatDate(payment.dueAt)}</strong><span className="invoice-status">{payment.status}</span></div>
+        </div>
+        <table className="invoice-lines"><thead><tr><th>Description</th><th>Amount</th></tr></thead><tbody><tr><td>{payment.description}</td><td>₹{payment.totalAmount.toLocaleString("en-IN")}</td></tr></tbody></table>
+        <div className="invoice-totals"><div><span>Invoice total</span><strong>₹{payment.totalAmount.toLocaleString("en-IN")}</strong></div><div><span>Amount received</span><strong>₹{payment.paidAmount.toLocaleString("en-IN")}</strong></div><div className="invoice-balance"><span>Balance due</span><strong>₹{balance.toLocaleString("en-IN")}</strong></div></div>
+        <footer className="invoice-print-footer"><strong>Thank you for choosing {organizationName}.</strong><span>This is a computer-generated invoice.</span></footer>
+      </article>
     </Modal>
   );
 }
