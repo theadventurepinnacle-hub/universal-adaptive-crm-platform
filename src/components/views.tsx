@@ -945,11 +945,13 @@ export function QuotationsView({ data, onToast }: { data: WorkspaceData; onToast
   );
 }
 
-export function PaymentsView({ data, onCollect, onAddClient, onNewInvoice }: {
+export function PaymentsView({ data, onCollect, onAddClient, onNewInvoice, onRecordPayment, onPreviewInvoice }: {
   data: WorkspaceData;
   onCollect: (id: number) => void;
   onAddClient: () => void;
   onNewInvoice: () => void;
+  onRecordPayment: (id: number) => void;
+  onPreviewInvoice: (id: number) => void;
 }) {
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const total = data.payments.reduce((sum, payment) => sum + payment.totalAmount, 0);
@@ -959,13 +961,15 @@ export function PaymentsView({ data, onCollect, onAddClient, onNewInvoice }: {
 
   return (
     <div className="page">
-      <PageHead eyebrow="FINANCE" title="Payments" subtitle="Clients, manual invoices, collections and outstanding balances" actions={<div className="toolbar-actions">
-        <button className="btn btn-secondary" type="button" onClick={() => setNewMenuOpen((open) => !open)}><Plus size={16} /> New</button>
-        {newMenuOpen && <>
-          <button className="btn btn-secondary" type="button" onClick={() => { setNewMenuOpen(false); onAddClient(); }}><Users size={15} /> Add client</button>
-          <button className="btn btn-secondary" type="button" onClick={() => { setNewMenuOpen(false); onNewInvoice(); }}><ReceiptText size={15} /> New invoice</button>
-        </>}
-        <button className="btn btn-primary" type="button" disabled={!hasCollection} onClick={() => onCollect(data.payments.find((payment) => payment.status !== "Paid" && payment.totalAmount > payment.paidAmount)?.id ?? 0)}><CircleDollarSign size={16} /> Record payment</button>
+      <PageHead eyebrow="FINANCE" title="Payments" subtitle="Client invoices, service prices, collections and outstanding balances" actions={<div className="toolbar-actions">
+        <div className="new-invoice-menu">
+          <button className="btn btn-secondary" type="button" onClick={() => setNewMenuOpen((open) => !open)}><Plus size={16} /> New</button>
+          {newMenuOpen && <div className="side-menu invoice-new-menu">
+            <button type="button" onClick={() => { setNewMenuOpen(false); onAddClient(); }}><Users size={15} /> Add client only</button>
+            <button type="button" onClick={() => { setNewMenuOpen(false); onNewInvoice(); }}><ReceiptText size={15} /> New client + invoice</button>
+          </div>}
+        </div>
+        <button className="btn btn-primary" type="button" onClick={() => onRecordPayment(data.payments.find((payment) => payment.status !== "Paid" && payment.totalAmount > payment.paidAmount)?.id ?? 0)} disabled={!hasCollection}><CircleDollarSign size={16} /> Record payment</button>
       </div>} />
       <section className="summary-row">
         <div className="summary-card"><span className="summary-icon yellow"><ReceiptText size={16} /></span><div><small>Total billed</small><strong>{money(total)}</strong></div></div>
@@ -974,20 +978,24 @@ export function PaymentsView({ data, onCollect, onAddClient, onNewInvoice }: {
         <div className="summary-card"><span className="summary-icon peach"><CircleDollarSign size={16} /></span><div><small>Overdue</small><strong>{money(overdue)}</strong></div></div>
       </section>
       <Card pad={false}>
-        <div className="table-toolbar"><h2 className="card-title">Payment records</h2><ExportButton onClick={() => downloadCsv("payments.csv", [["Reference", "Contact", "Description", "Total", "Paid", "Due", "Status"], ...data.payments.map((payment) => [payment.reference, payment.customer, payment.description, payment.totalAmount, payment.paidAmount, payment.dueAt, payment.status])])} /></div>
+        <div className="table-toolbar"><h2 className="card-title">Invoices &amp; payment records</h2><ExportButton onClick={() => downloadCsv("payments.csv", [["Reference", "Contact", "Description", "Total", "Paid", "Balance", "Due", "Status"], ...data.payments.map((payment) => [payment.reference, payment.customer, payment.description, payment.totalAmount, payment.paidAmount, payment.totalAmount-payment.paidAmount, payment.dueAt, payment.status])])} /></div>
         <div className="payment-list">
           {data.payments.map((payment) => {
             const balance = payment.totalAmount - payment.paidAmount;
-            const progress = Math.round(payment.paidAmount / payment.totalAmount * 100);
+            const progress = payment.totalAmount ? Math.round(payment.paidAmount / payment.totalAmount * 100) : 0;
             return (
               <div key={payment.id} className="payment-row">
                 <span className="summary-icon lilac"><Wallet size={16} /></span>
-                <div className="payment-main"><div><strong>{payment.customer}</strong><Status value={payment.status} /></div><small>{payment.reference} · {payment.description}</small><span className="inline-progress"><span className="progress-track"><i style={{ width: `${progress}%` }} /></span>{progress}%</span></div>
-                <div className="payment-amount"><strong>{money(balance, false)}</strong><small>Due {shortDate(payment.dueAt)}</small></div>
-                {payment.status !== "Paid" && <button className="btn btn-secondary btn-sm" onClick={() => onCollect(payment.id)}>Collect</button>}
+                <div className="payment-main"><div><strong>{payment.customer}</strong><Status value={payment.status} /></div><small>{payment.reference} · {payment.description}</small><span className="inline-progress"><span className="progress-track"><i style={{ width: `${progress}%` }} /></span>{progress}% paid</span></div>
+                <div className="payment-amount"><strong>{money(balance, false)}</strong><small>Balance · Total {money(payment.totalAmount, false)}</small><small>Due {shortDate(payment.dueAt)}</small></div>
+                <div className="payment-row-actions">
+                  <button className="btn btn-secondary btn-sm" onClick={() => onPreviewInvoice(payment.id)}><Eye size={13} /> Invoice</button>
+                  {balance > 0 && <button className="btn btn-primary btn-sm" onClick={() => onRecordPayment(payment.id)}>Record payment</button>}
+                </div>
               </div>
             );
           })}
+          {!data.payments.length && <Empty title="No invoices or payments yet" detail="Use New → New client + invoice to add a customer, enter the service price and create the first invoice." />}
         </div>
       </Card>
     </div>
