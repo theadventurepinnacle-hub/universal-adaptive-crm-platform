@@ -287,7 +287,7 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
             : <CalendarView data={data} onAdd={() => setQuickAdd("task")} onComplete={completeTask} />)}
           {view === "reports" && <ReportsView data={data} onToast={showToast} />}
           {view === "quotations" && <QuotationsView data={data} onToast={showToast} />}
-          {view === "payments" && <PaymentsView data={data} onCollect={collect} onAddClient={() => setContactModal({ contact: null })} onNewInvoice={() => setInvoiceModalOpen(true)} onRecordPayment={(id) => setRecordPaymentId(id)} onPreviewInvoice={(id) => setPreviewPaymentId(id)} />}
+          {view === "payments" && <PaymentsView data={data} onAddClient={() => setContactModal({ contact: null })} onNewInvoice={() => setInvoiceModalOpen(true)} onRecordPayment={(id) => setRecordPaymentId(id)} onPreviewInvoice={(id) => setPreviewPaymentId(id)} />}
           {view === "settings" && <SettingsView data={data} onToast={showToast} />}
           {view === "more" && <MoreView data={data} onNavigate={navigate} onToast={showToast} />}
         </main>
