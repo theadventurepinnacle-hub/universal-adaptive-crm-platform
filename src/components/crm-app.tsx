@@ -40,7 +40,6 @@ function Logo({ compact = false, brandName = "HOMIGO" }: { compact?: boolean; br
 
 export default function CrmApp({ initialData }: { initialData: WorkspaceData }) {
   const [data, setData] = useState(initialData);
-  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const [view, setView] = useState<ViewKey>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileMenu, setProfileMenu] = useState<"side" | "top" | null>(null);
@@ -57,36 +56,6 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const switchWorkspace = async (slug: "adventure" | "homigo") => {
-    if (slug === data.organization.slug) { setWorkspaceMenuOpen(false); return; }
-    setBusy(true);
-    try {
-      const response = await fetch("/api/crm?industry=" + slug, { cache: "no-store" });
-      const next = await response.json() as WorkspaceData & { error?: string };
-      if (!response.ok) throw new Error(next.error || "Could not load workspace");
-      const saved = await fetch("/api/workspace", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug }),
-      });
-      if (!saved.ok) throw new Error("Could not save workspace preference");
-      setData(next);
-      setView("dashboard");
-      setSelectedLeadId(null);
-      setSelectedContactId(null);
-      setSelectedCompanyId(null);
-      setQuickAdd(null);
-      setContactModal(null);
-      setDealModal(false);
-      setWorkspaceMenuOpen(false);
-      showToast(next.organization.name + " workspace opened");
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : "Workspace switch failed");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -216,23 +185,10 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
         </div>
 
         <div className="ws-wrap">
-          <button className="ws-switch" type="button" aria-expanded={workspaceMenuOpen} onClick={() => setWorkspaceMenuOpen((open) => !open)}>
-            <span className="workspace-logo" style={{ background: data.organization.accent }}>{data.organization.slug === "homigo" ? "HO" : "TP"}</span>
-            <div><strong>{data.organization.name}</strong><small>{data.organization.industry} workspace</small></div>
-            <ChevronDown size={14} />
-          </button>
-          {workspaceMenuOpen && <div className="side-menu workspace-menu">
-            <button onClick={() => void switchWorkspace("adventure")}>
-              <span className="workspace-logo">TP</span>
-              <span><strong>The Adventure Pinnacle</strong><small>Travel &amp; Tourism</small></span>
-              {data.organization.slug === "adventure" ? <Check size={14} /> : null}
-            </button>
-            <button onClick={() => void switchWorkspace("homigo")}>
-              <span className="workspace-logo" style={{ background: "#A3E635", color: "#17210b" }}>HO</span>
-              <span><strong>HOMIGO</strong><small>Maid Supply &amp; Home Services</small></span>
-              {data.organization.slug === "homigo" ? <Check size={14} /> : null}
-            </button>
-          </div>}
+          <div className="ws-switch" aria-label="HOMIGO agency workspace">
+            <span className="workspace-logo" style={{ background: "#A3E635", color: "#17210b" }}>HO</span>
+            <div><strong>HOMIGO</strong><small>Maid Supply &amp; Home Services</small></div>
+          </div>
         </div>
 
         <nav className="nav-scroll">
