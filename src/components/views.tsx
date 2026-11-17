@@ -945,7 +945,7 @@ export function QuotationsView({ data, onToast }: { data: WorkspaceData; onToast
   );
 }
 
-export function PaymentsView({ data, onCollect, onAddClient, onNewInvoice, onRecordPayment, onPreviewInvoice }: {
+export function PaymentsView({ data, onAddClient, onNewInvoice, onRecordPayment, onPreviewInvoice }: {
   data: WorkspaceData;
   onAddClient: () => void;
   onNewInvoice: () => void;
