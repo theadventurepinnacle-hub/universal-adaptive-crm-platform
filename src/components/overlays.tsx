@@ -141,7 +141,26 @@ export function DealModal({ data, onClose, onSave }: {
     date.setDate(date.getDate() + 21);
     return date.toISOString().slice(0, 10);
   });
+  const [selectedRequestId, setSelectedRequestId] = useState("");
+  const [selectedMaidId, setSelectedMaidId] = useState("");
   const isHomigo = data.organization.slug === "homigo";
+  const suggestedMaids = useMemo(() => {
+    if (!isHomigo) return [];
+    const request = data.leads.find((lead) => String(lead.id) === selectedRequestId);
+    if (!request) return [];
+    const requiredSkills = String(request.customData.service_type || request.customData.requirement || "").toLowerCase();
+    const requiredArea = String(request.customData.location || "").toLowerCase();
+    return data.maids.map((maid) => {
+      const skills = maid.serviceTypes.toLowerCase();
+      const area = maid.location.toLowerCase();
+      const availability = maid.availability.toLowerCase();
+      const skillMatch = Boolean(requiredSkills && skills !== "not specified" && skills.includes(requiredSkills));
+      const areaMatch = Boolean(requiredArea && area && (area.includes(requiredArea) || requiredArea.includes(area)));
+      const available = availability.includes("available") && !availability.includes("not available");
+      const score = (skillMatch ? 4 : 0) + (areaMatch ? 3 : 0) + (available ? 2 : 0);
+      return { ...maid, score, skillMatch, areaMatch, available };
+    }).sort((left, right) => right.score - left.score).slice(0, 4);
+  }, [data.leads, data.maids, isHomigo, selectedRequestId]);
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
@@ -179,8 +198,18 @@ export function DealModal({ data, onClose, onSave }: {
         {!isHomigo && <Field label="Company"><input name="company" placeholder="Company name" /></Field>}
         <Field label={isHomigo ? "Client" : "Contact"}><select name="contactId" defaultValue=""><option value="">No client selected</option>{data.customers.map((contact) => <option key={contact.id} value={contact.id}>{contact.name} · {contact.phone}</option>)}</select></Field>
         {isHomigo && <>
-          <Field label="Assign maid" required><select name="maidId" required defaultValue=""><option value="">Select a maid</option>{data.maids.map((maid) => <option key={maid.id} value={maid.id}>{maid.name} · {maid.location || "Location not recorded"} · {maid.availability}</option>)}</select></Field>
-          <Field label="Related service request"><select name="serviceRequestId" defaultValue=""><option value="">No linked request</option>{data.leads.map((lead) => <option key={lead.id} value={lead.id}>{lead.name} · {lead.customData.service_type || "Service request"}</option>)}</select></Field>
+          <Field label="Assign maid" required><select name="maidId" required value={selectedMaidId} onChange={(event) => setSelectedMaidId(event.target.value)}><option value="">Select a maid</option>{data.maids.map((maid) => <option key={maid.id} value={maid.id}>{maid.name} · {maid.location || "Location not recorded"} · {maid.availability}</option>)}</select></Field>
+          <Field label="Related service request"><select name="serviceRequestId" value={selectedRequestId} onChange={(event) => { setSelectedRequestId(event.target.value); setSelectedMaidId(""); }}><option value="">No linked request</option>{data.leads.map((lead) => <option key={lead.id} value={lead.id}>{lead.name} · {lead.customData.service_type || "Service request"}</option>)}</select></Field>
+          {selectedRequestId && <div className="field full">
+            <span className="field-label">Suggested maid matches</span>
+            <small className="muted-note">Suggestions use only recorded skills, area and availability. Confirm directly with the worker before promising a placement.</small>
+            {suggestedMaids.length ? <div className="mobile-list">
+              {suggestedMaids.map((maid) => <div className="mobile-row" key={maid.id}>
+                <div className="mobile-row-top"><div className="person"><Avatar name={maid.name} size="sm" /><div><strong>{maid.name}</strong><small>{maid.location || "Location not recorded"} · {maid.serviceTypes}</small></div></div><Status value={maid.availability} /></div>
+                <div className="mobile-row-actions"><button type="button" className="btn btn-secondary btn-sm" onClick={() => setSelectedMaidId(String(maid.id))}>{selectedMaidId === String(maid.id) ? "Selected" : "Select this maid"}</button></div>
+              </div>)}
+            </div> : <p className="muted-note">No maid profiles to compare yet. Add workers to the Maid Directory first.</p>}
+          </div>}
           <Field label="Service start date" required><input name="startAt" type="date" required defaultValue={closeDate} /></Field>
           <Field label="Schedule / shift"><input name="schedule" placeholder="e.g. Mon–Sat, 8 AM–5 PM" /></Field>
           <Field label="Client fee (₹)" required><input name="clientFee" type="number" min="0" required placeholder="Monthly / placement fee" /></Field>
