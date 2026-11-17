@@ -7,6 +7,7 @@ import {
   createDeal,
   createLead,
   createManualInvoice,
+  recordPayment,
   createMaid,
   updateMaid,
   createTask,
@@ -87,16 +88,40 @@ export async function POST(request: NextRequest) {
     if (action === "advanceLead") return Response.json(await advanceLead(industry, Number(body.id)));
     if (action === "quickAction") return Response.json(await recordQuickAction(industry, Number(body.id), text(body.quickAction, "note")));
     if (action === "collectPayment") return Response.json(await collectPayment(industry, Number(body.id)));
+    if (action === "recordPayment") {
+      const paymentId = Number(body.paymentId);
+      const amount = Number(body.amount);
+      if (!Number.isSafeInteger(paymentId) || paymentId <= 0 || !Number.isFinite(amount) || amount <= 0) {
+        return Response.json({ error: "Select an invoice and enter a valid payment amount" }, { status: 400 });
+      }
+      return Response.json(await recordPayment(industry, {
+        paymentId,
+        amount,
+        method: text(body.method, "Cash"),
+        note: text(body.note),
+      }));
+    }
 
     if (action === "createManualInvoice") {
       const customerId = Number(body.customerId);
+      const newCustomer = body.newCustomer && typeof body.newCustomer === "object"
+        ? body.newCustomer as { name?: unknown; phone?: unknown; email?: unknown; address?: unknown }
+        : undefined;
       const totalAmount = Number(body.totalAmount);
       const paidAmount = Number(body.paidAmount ?? 0);
-      if (!Number.isSafeInteger(customerId) || customerId <= 0 || !text(body.description).trim() || !Number.isFinite(totalAmount) || !text(body.dueAt)) {
-        return Response.json({ error: "Client, description, invoice amount and due date are required" }, { status: 400 });
+      const hasExistingClient = Number.isSafeInteger(customerId) && customerId > 0;
+      const hasNewClient = Boolean(text(newCustomer?.name).trim() && text(newCustomer?.phone).trim());
+      if ((!hasExistingClient && !hasNewClient) || !text(body.description).trim() || !Number.isFinite(totalAmount) || !text(body.dueAt)) {
+        return Response.json({ error: "Choose an existing client or enter a new client's name and phone, then complete the invoice details" }, { status: 400 });
       }
       return Response.json(await createManualInvoice(industry, {
-        customerId,
+        ...(hasExistingClient ? { customerId } : {}),
+        ...(hasNewClient ? { newCustomer: {
+          name: text(newCustomer?.name),
+          phone: text(newCustomer?.phone),
+          email: text(newCustomer?.email),
+          address: text(newCustomer?.address),
+        } } : {}),
         description: text(body.description),
         totalAmount,
         paidAmount,
