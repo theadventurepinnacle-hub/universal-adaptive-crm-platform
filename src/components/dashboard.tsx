@@ -192,6 +192,7 @@ export function OwnerDashboard({ data, onNavigate, onAssistant, onAddContact, on
   onOpenContact: (id: number) => void;
   onCompleteTask: (id: number) => void;
 }) {
+  const totalBilled = data.payments.reduce((sum, payment) => sum + payment.totalAmount, 0);
   const collected = data.payments.reduce((sum, payment) => sum + payment.paidAmount, 0);
   const pending = data.payments.reduce((sum, payment) => sum + Math.max(0, payment.totalAmount - payment.paidAmount), 0);
   const wonLeads = data.leads.filter((lead) => data.stages.find((stage) => stage.id === lead.stageId)?.isWon).length;
@@ -205,11 +206,11 @@ export function OwnerDashboard({ data, onNavigate, onAssistant, onAddContact, on
     { label: data.profile.customerPlural, value: String(data.customers.length), detail: data.organization.slug === "homigo" ? "Active client accounts" : "Saved traveller records", icon: Users, tone: "mint", foot: data.organization.slug === "homigo" ? "Client database" : `${data.companies.length} companies`, onClick: () => onNavigate("contacts") },
     { label: data.profile.leadPlural, value: String(data.leads.length), detail: `${data.leads.filter((lead) => lead.score >= 75).length} high-priority enquiries`, icon: Target, tone: "yellow", foot: `${data.leads.filter((lead) => !lead.assignedToId).length} unassigned`, onClick: () => onNavigate("leads") },
     { label: data.profile.dealPlural || "Deals", value: String(data.deals.length), detail: money(data.deals.reduce((sum, deal) => sum + deal.value, 0)), icon: Handshake, tone: "lilac", foot: data.organization.slug === "homigo" ? "Confirmed placements" : `${data.deals.filter((deal) => deal.probability >= 70).length} likely to close`, onClick: () => onNavigate("deals") },
-    { label: "Payments collected", value: money(collected), detail: `${data.payments.length} payment records`, icon: CircleDollarSign, tone: "dark", foot: `${money(pending)} outstanding`, onClick: () => onNavigate("payments") },
+    { label: "Payments collected", value: money(collected), detail: `${money(totalBilled)} billed · ${data.payments.length} invoices`, icon: CircleDollarSign, tone: "dark", foot: `${money(pending)} outstanding`, onClick: () => onNavigate("payments") },
     data.organization.slug === "homigo"
       ? { label: "Staff records", value: String(data.maids.length), detail: `${data.maids.filter((maid) => maid.availability.toLowerCase().includes("available") && !maid.availability.toLowerCase().includes("not available")).length} marked available`, icon: Users, tone: "dark", foot: "Staff directory", onClick: () => onNavigate("maids") }
       : { label: "Conversion rate", value: `${conversion}%`, detail: `${wonLeads} won of ${data.leads.length}`, icon: TrendingUp, tone: "dark", foot: "Based on recorded enquiries", onClick: () => onNavigate("reports") },
-  ], [collected, conversion, data, onNavigate, pending, wonLeads]);
+  ], [collected, conversion, data, onNavigate, pending, totalBilled, wonLeads]);
 
   return (
     <div className="page">
