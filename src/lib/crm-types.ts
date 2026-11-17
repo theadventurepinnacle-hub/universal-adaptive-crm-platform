@@ -279,4 +279,5 @@ export type CreateDealInput = {
   clientFee?: number;
   serviceRequestId?: number | null;
   placementNotes?: string;
+  placementStatus?: string;
 };
