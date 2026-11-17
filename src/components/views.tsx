@@ -292,9 +292,11 @@ function DealCard({ deal, stages, onOpen, onStage, onDragStart, onDragEnd, dragg
     >
       <div className="deal-top"><Priority value={deal.priority} /><button className="drag-handle" aria-label="Drag deal"><LayoutGrid size={13} /></button></div>
       <button className="deal-title" onClick={onOpen}>{deal.title}</button>
-      <p className="deal-company"><Building2 size={12} />{deal.company} · {deal.contact}</p>
+      <p className="deal-company"><Building2 size={12} />{deal.company || deal.contact}</p>
+      {deal.maidName && <p className="deal-company"><Users size={12} />Maid: {deal.maidName}</p>}
+      {deal.schedule && <p className="deal-company"><CalendarDays size={12} />{deal.schedule}</p>}
       <div className="deal-value">{money(deal.value, false)}</div>
-      <div className="deal-meta"><span><CalendarDays size={12} /> {shortDate(deal.expectedCloseAt)}</span><span>{deal.probability}% likely</span></div>
+      <div className="deal-meta"><span><CalendarDays size={12} /> {shortDate(deal.startAt || deal.expectedCloseAt)}</span><span>{deal.placementStatus || `${deal.probability}% likely`}</span></div>
       <div className="deal-foot">
         <span className="person-mini"><Avatar name={deal.owner} size="xs" />{deal.owner.split(" ")[0]}</span>
         <span className="select-inline compact">
@@ -391,10 +393,11 @@ export function DealsView({ data, onAdd, onOpen, onStage }: {
                   <tr key={deal.id} className="clickable" onClick={() => onOpen(deal)}>
                     <td><strong>{deal.title}</strong><small className="cell-sub">{deal.contact}</small></td>
                     <td><Status value={deal.stage} /></td>
-                    <td className="muted">{deal.company}</td>
+                    <td className="muted">{deal.company || deal.contact}</td>
+                    {data.organization.slug === "homigo" && <td>{deal.maidName || "Not assigned"}</td>}
                     <td className="strong">{money(deal.value, false)}</td>
-                    <td><span className="inline-progress"><span className="progress-track"><i style={{ width: `${deal.probability}%` }} /></span>{deal.probability}%</span></td>
-                    <td className="muted">{shortDate(deal.expectedCloseAt)}</td>
+                    <td>{data.organization.slug === "homigo" ? <Status value={deal.placementStatus || deal.stage} /> : <span className="inline-progress"><span className="progress-track"><i style={{ width: `${deal.probability}%` }} /></span>{deal.probability}%</span>}</td>
+                    <td className="muted">{shortDate(deal.startAt || deal.expectedCloseAt)}</td>
                     <td>{deal.owner.split(" ")[0]}</td>
                     <td><Priority value={deal.priority} /></td>
                   </tr>
