@@ -59,11 +59,16 @@ export async function getMetaCredentials(organizationId: number) {
 
 function parseInsights(text: string): LeadInsights | null {
   const cleaned = text.replace(/^\u0060\u0060\u0060(?:json)?/i, "").replace(/\u0060\u0060\u0060$/i, "").trim();
-  const start = cleaned.indexOf("{"), end = cleaned.lastIndexOf("}");
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
   if (start < 0 || end <= start) return null;
   try {
     const parsed = JSON.parse(cleaned.slice(start, end + 1)) as Record<string, unknown>;
-    const priority = ["High", "Medium", "Low"].includes(String(parsed.priority)) ? parsed.priority as LeadInsights["priority"] : "Medium";
+    const priority = ["High", "Medium", "Low"].includes(String(parsed.priority))
+      ? parsed.priority as LeadInsights["priority"]
+      : "Medium";
+    const maidCountValue = Number(parsed.maidCount);
+    const budgetValue = Number(parsed.budget);
     return {
       summary: cleanString(parsed.summary, 700),
       intent: cleanString(parsed.intent, 100),
@@ -71,10 +76,21 @@ function parseInsights(text: string): LeadInsights | null {
       location: cleanString(parsed.location, 180),
       frequency: cleanString(parsed.frequency, 100),
       workingHours: cleanString(parsed.workingHours, 120),
-      maidCount: parsed.maidCount !== null && parsed.maidCount !== undefined && Number.isFinite(Number(parsed.maidCount)) && Number(parsed.maidCount) > 0
-        ? Math.min(100, Math.round(Number(parsed.maidCount))) : null,
-      budget: parsed.budget !== null && parsed.budget !== undefined && Number.isFinite(Number(parsed.budget)) && Number(parsed.budget) >= 0
-        ? Math.min(100000000, Math.round(Number(parsed.budgasync function qualifyMessage(message: string): Promise<LeadInsights | null> {
+      maidCount: parsed.maidCount !== null && parsed.maidCount !== undefined && Number.isFinite(maidCountValue) && maidCountValue > 0
+        ? Math.min(100, Math.round(maidCountValue))
+        : null,
+      budget: parsed.budget !== null && parsed.budget !== undefined && Number.isFinite(budgetValue) && budgetValue >= 0
+        ? Math.min(100000000, Math.round(budgetValue))
+        : null,
+      priority,
+      replySuggestion: cleanString(parsed.replySuggestion, 900),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function qualifyMessage(message: string): Promise<LeadInsights | null> {
   const content = message.trim();
   if (!content || content.startsWith("[")) return null;
   try {
