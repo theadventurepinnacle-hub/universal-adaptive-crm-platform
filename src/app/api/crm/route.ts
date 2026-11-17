@@ -164,6 +164,7 @@ export async function POST(request: NextRequest) {
         clientFee: Number(body.clientFee ?? body.value ?? 0),
         serviceRequestId: body.serviceRequestId ? Number(body.serviceRequestId) : null,
         placementNotes: text(body.placementNotes),
+        placementStatus: text(body.placementStatus, "Scheduled"),
       }));
     }
 
