@@ -20,11 +20,11 @@ import { getAuthenticatedSession, isSameOrigin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-const industries = new Set<IndustryKey>(["adventure"]);
+const industries = new Set<IndustryKey>(["adventure", "homigo"]);
 
 function getIndustry(value: unknown): IndustryKey {
   if (typeof value === "string" && industries.has(value as IndustryKey)) return value as IndustryKey;
-  return "adventure";
+  return "homigo";
 }
 
 function text(value: unknown, fallback = "") {
