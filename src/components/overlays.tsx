@@ -141,35 +141,60 @@ export function DealModal({ data, onClose, onSave }: {
     date.setDate(date.getDate() + 21);
     return date.toISOString().slice(0, 10);
   });
+  const isHomigo = data.organization.slug === "homigo";
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
     const values = Object.fromEntries(new FormData(event.currentTarget).entries());
+    const clientFee = Number(values.clientFee ?? values.value ?? 0);
     await onSave({
       action: "createDeal",
       ...values,
       contactId: values.contactId ? Number(values.contactId) : null,
-      value: Number(values.value ?? 0),
+      value: isHomigo ? clientFee : Number(values.value ?? 0),
       stageId: Number(values.stageId),
-      probability: Number(values.probability ?? 50),
+      probability: Number(values.probability ?? (isHomigo ? 80 : 50)),
+      ...(isHomigo ? {
+        maidId: values.maidId ? Number(values.maidId) : null,
+        serviceRequestId: values.serviceRequestId ? Number(values.serviceRequestId) : null,
+        startAt: String(values.startAt || closeDate),
+        expectedCloseAt: String(values.startAt || closeDate),
+        workerPay: Number(values.workerPay ?? 0),
+        clientFee,
+        placementNotes: String(values.placementNotes || ""),
+      } : {}),
     });
     setSaving(false);
   };
   return (
     <Modal
-      title="New deal"
-      subtitle={`Add an opportunity to ${data.profile.pipelineName}.`}
+      title={isHomigo ? "Create maid placement" : "New deal"}
+      subtitle={isHomigo ? "Link a client, assigned maid, agreed service fee and start schedule." : `Add an opportunity to ${data.profile.pipelineName}.`}
       onClose={onClose}
-      footer={<><button className="btn btn-secondary" type="button" onClick={onClose}>Cancel</button><button className="btn btn-primary" type="submit" form="deal-form" disabled={saving}>{saving ? <span className="spinner" /> : <Plus size={15} />} Create deal</button></>}
+      wide={isHomigo}
+      footer={<><button className="btn btn-secondary" type="button" onClick={onClose}>Cancel</button><button className="btn btn-primary" type="submit" form="deal-form" disabled={saving}>{saving ? <span className="spinner" /> : <Plus size={15} />} {isHomigo ? "Create placement" : "Create deal"}</button></>}
     >
       <form id="deal-form" onSubmit={submit} className="form-grid">
-        <Field label="Deal name" required><input name="title" required autoFocus placeholder={`e.g. ${data.profile.productLabel} for Acme`} /></Field>
-        <Field label="Company"><input name="company" placeholder="Company name" /></Field>
-        <Field label="Contact"><select name="contactId" defaultValue=""><option value="">No contact</option>{data.customers.map((contact) => <option key={contact.id} value={contact.id}>{contact.name}</option>)}</select></Field>
-        <Field label="Value" required><input name="value" type="number" min="0" required placeholder="50000" /></Field>
-        <Field label="Stage"><select name="stageId" defaultValue={data.stages[0]?.id}>{data.stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.name}</option>)}</select></Field>
-        <Field label="Expected close" required><input name="expectedCloseAt" type="date" required defaultValue={closeDate} /></Field>
-        <Field label="Probability %"><input name="probability" type="number" min="0" max="100" defaultValue={50} /></Field>
+        <Field label={isHomigo ? "Placement title" : "Deal name"} required><input name="title" required autoFocus placeholder={isHomigo ? "e.g. Full-time maid for Anjana Nair" : `e.g. ${data.profile.productLabel} for Acme`} /></Field>
+        {!isHomigo && <Field label="Company"><input name="company" placeholder="Company name" /></Field>}
+        <Field label={isHomigo ? "Client" : "Contact"}><select name="contactId" defaultValue=""><option value="">No client selected</option>{data.customers.map((contact) => <option key={contact.id} value={contact.id}>{contact.name} · {contact.phone}</option>)}</select></Field>
+        {isHomigo && <>
+          <Field label="Assign maid" required><select name="maidId" required defaultValue=""><option value="">Select a maid</option>{data.maids.map((maid) => <option key={maid.id} value={maid.id}>{maid.name} · {maid.location || "Location not recorded"} · {maid.availability}</option>)}</select></Field>
+          <Field label="Related service request"><select name="serviceRequestId" defaultValue=""><option value="">No linked request</option>{data.leads.map((lead) => <option key={lead.id} value={lead.id}>{lead.name} · {lead.customData.service_type || "Service request"}</option>)}</select></Field>
+          <Field label="Service start date" required><input name="startAt" type="date" required defaultValue={closeDate} /></Field>
+          <Field label="Schedule / shift"><input name="schedule" placeholder="e.g. Mon–Sat, 8 AM–5 PM" /></Field>
+          <Field label="Client fee (₹)" required><input name="clientFee" type="number" min="0" required placeholder="Monthly / placement fee" /></Field>
+          <Field label="Worker pay (₹)"><input name="workerPay" type="number" min="0" placeholder="Agreed maid salary / pay" /></Field>
+          <Field label="Placement status"><select name="placementStatus" defaultValue="Scheduled"><option>Scheduled</option><option>Awaiting start</option><option>Active</option><option>On hold</option><option>Completed</option><option>Cancelled</option></select></Field>
+          <div className="field full"><span className="field-label">Placement notes</span><textarea name="placementNotes" rows={3} placeholder="Service scope, handover, agreed terms or follow-up notes..." /></div>
+        </>}
+        {!isHomigo && <>
+          <Field label="Value" required><input name="value" type="number" min="0" required placeholder="50000" /></Field>
+          <Field label="Stage"><select name="stageId" defaultValue={data.stages[0]?.id}>{data.stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.name}</option>)}</select></Field>
+          <Field label="Expected close" required><input name="expectedCloseAt" type="date" required defaultValue={closeDate} /></Field>
+          <Field label="Probability %"><input name="probability" type="number" min="0" max="100" defaultValue={50} /></Field>
+        </>}
+        {isHomigo && <Field label="Stage"><select name="stageId" defaultValue={data.stages.find((stage) => stage.name === "Placed")?.id ?? data.stages[0]?.id}>{data.stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.name}</option>)}</select></Field>}
         <Field label="Priority"><select name="priority" defaultValue="Medium"><option>High</option><option>Medium</option><option>Low</option></select></Field>
         <Field label="Source"><select name="source" defaultValue={data.profile.sources[0]}>{data.profile.sources.map((source) => <option key={source}>{source}</option>)}</select></Field>
       </form>
