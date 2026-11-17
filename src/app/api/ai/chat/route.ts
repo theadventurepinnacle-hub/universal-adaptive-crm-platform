@@ -11,14 +11,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json() as { question?: unknown };
     const question = typeof body.question === "string" ? body.question.trim().slice(0, 1200) : "";
     if (!question) return Response.json({ error: "Enter a question for your assistant." }, { status: 400 });
-    const data = await getWorkspaceData("adventure");
+    const data = await getWorkspaceData("homigo");
     const context = {
       business: data.organization.name,
       today: new Date().toISOString().slice(0, 10),
       totals: {
         enquiries: data.leads.length,
-        travellers: data.customers.length,
-        tripBookings: data.deals.length,
+        clients: data.customers.length,
+        maidProfiles: data.maids.length,
+        placements: data.deals.length,
         pipelineValueINR: data.deals.reduce((sum, deal) => sum + deal.value, 0),
         paymentsPendingINR: data.payments.reduce((sum, payment) => sum + Math.max(0, payment.totalAmount - payment.paidAmount), 0),
         openTasks: data.tasks.filter((task) => task.status !== "completed").length,
@@ -27,9 +28,16 @@ export async function POST(request: NextRequest) {
         name: lead.name, source: lead.source, priority: lead.priority, score: lead.score,
         stage: lead.stage, followUp: lead.nextFollowUp, details: lead.customData,
       })),
-      bookings: data.deals.slice(0, 20).map((deal) => ({
-        title: deal.title, valueINR: deal.value, stage: deal.stage, probability: deal.probability,
+      placements: data.deals.slice(0, 30).map((deal) => ({
+        title: deal.title, client: deal.contact, maid: deal.maidName || "Not assigned",
+        startAt: deal.startAt, schedule: deal.schedule, clientFeeINR: deal.clientFee ?? deal.value,
+        workerPayINR: deal.workerPay ?? 0, status: deal.placementStatus || deal.stage,
       })),
+      maidDirectory: data.maids.slice(0, 50).map((maid) => ({
+        name: maid.name, phone: maid.phone, location: maid.location, skills: maid.serviceTypes,
+        availability: maid.availability, age: maid.age,
+      })),
+
       tasks: data.tasks.filter((task) => task.status !== "completed").slice(0, 20).map((task) => ({
         title: task.title, dueAt: task.dueAt, priority: task.priority, relatedTo: task.relatedTo,
       })),
@@ -38,10 +46,10 @@ export async function POST(request: NextRequest) {
       {
         role: "system",
         content: [
-          "You are the AI business assistant for The Adventure Pinnacle, a travel agency in Kerala, India.",
-          "Answer using only the CRM context supplied. Do not invent bookings, availability, customer facts, prices, or revenue.",
+          "You are the AI operations assistant for HOMIGO, a maid supply and home staffing agency in Kerala, India.",
+          "Answer using only the CRM context supplied. Do not invent maid availability, worker verification, client requirements, salaries, service fees, placements, or payments.",
           "Use Indian Rupees (INR) when discussing money. Keep answers practical and concise.",
-          "Recommend next actions for enquiries, trip planning, follow-ups, and bookings.",
+          "Recommend practical next actions for client requirements, maid matching by location and skills, availability checks, placement follow-ups, schedules and collections. Never claim a worker is available unless the CRM says so.",
           "Never reveal or ask for API keys, access tokens, passwords, or other secrets.",
           "If data is missing, say what is missing and what the owner should record.",
         ].join(" "),
