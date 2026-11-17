@@ -3,6 +3,7 @@ import "server-only";
 import { db } from "@/db";
 import {
   activities,
+  attendanceRecords,
   branches,
   customFields,
   customers,
@@ -37,7 +38,7 @@ export async function getWorkspaceData(slug: IndustryKey = "adventure"): Promise
     const [organization] = await db.select().from(organizations).where(eq(organizations.slug, slug)).limit(1);
     if (!organization) throw new Error("The Adventure Pinnacle workspace is not configured");
 
-    const [userRows, pipelineRows, customerRows, dealRows, leadRows, taskRows, paymentRows, quoteRows, activityRows, notificationRows, placementRows] = await Promise.all([
+    const [userRows, pipelineRows, customerRows, dealRows, leadRows, taskRows, paymentRows, quoteRows, activityRows, notificationRows, placementRows, attendanceRows] = await Promise.all([
       db.select().from(users).where(eq(users.organizationId, organization.id)).orderBy(asc(users.id)),
       db.select().from(pipelines).where(and(eq(pipelines.organizationId, organization.id), eq(pipelines.isDefault, true))).limit(1),
       db.select().from(customers).where(eq(customers.organizationId, organization.id)).orderBy(desc(customers.lastContactAt)),
@@ -49,6 +50,7 @@ export async function getWorkspaceData(slug: IndustryKey = "adventure"): Promise
       db.select().from(activities).where(eq(activities.organizationId, organization.id)).orderBy(desc(activities.createdAt)),
       db.select().from(notifications).where(eq(notifications.organizationId, organization.id)).orderBy(desc(notifications.createdAt)),
       db.select().from(placementDetails).where(eq(placementDetails.organizationId, organization.id)).orderBy(desc(placementDetails.createdAt)),
+      db.select().from(attendanceRecords).where(eq(attendanceRecords.organizationId, organization.id)).orderBy(desc(attendanceRecords.workDate)),
     ]);
 
     const pipeline = pipelineRows[0];
@@ -136,6 +138,28 @@ export async function getWorkspaceData(slug: IndustryKey = "adventure"): Promise
       };
     }).map((lead) => ({ ...lead, score: scoreLead(lead) }));
 
+    const placementById = new Map(placementRows.map((placement) => [placement.id, placement]));
+    const dealById = new Map(dealRows.map((deal) => [deal.id, deal]));
+    const mappedAttendance = attendanceRows.map((row) => {
+      const placement = placementById.get(row.placementId);
+      const deal = placement ? dealById.get(placement.dealId) : null;
+      const maid = customerById.get(row.maidId);
+      const client = placement?.clientId ? customerById.get(placement.clientId) : null;
+      return {
+        id: row.id,
+        placementId: row.placementId,
+        maidId: row.maidId,
+        maidName: maid?.name ?? "Maid",
+        clientName: client?.name ?? "Client",
+        placementTitle: deal?.title ?? "Maid placement",
+        workDate: row.workDate,
+        status: row.status,
+        checkIn: row.checkIn ?? "",
+        checkOut: row.checkOut ?? "",
+        notes: row.notes ?? "",
+      };
+    });
+
     const mappedDeals = dealRows.map((deal) => {
       const stage = stageById.get(deal.stageId);
       const owner = deal.ownerId ? userById.get(deal.ownerId) : null;
@@ -191,6 +215,7 @@ export async function getWorkspaceData(slug: IndustryKey = "adventure"): Promise
       leads: mappedLeads,
       customers: mappedCustomers,
       maids: mappedMaids,
+      attendance: mappedAttendance,
       deals: mappedDeals,
       companies,
       tasks: taskRows.map((task) => {
