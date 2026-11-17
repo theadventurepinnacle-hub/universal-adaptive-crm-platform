@@ -86,43 +86,164 @@ export function ContactModal({ data, contact, onClose, onSave }: {
 }) {
   const [saving, setSaving] = useState(false);
   const isHomigo = data.organization.slug === "homigo";
+  const [selectedExistingId, setSelectedExistingId] = useState<number | null>(contact?.id ?? null);
+  const [values, setValues] = useState<Record<string, string>>(() => ({
+    name: contact?.name ?? "",
+    phone: contact?.phone ?? "",
+    email: contact?.email ?? "",
+    company: contact?.company ?? "",
+    segment: contact?.segment ?? "Active",
+    totalValue: String(contact?.totalValue ?? 0),
+    ...Object.fromEntries(data.profile.customFields.map((field) => [
+      field.key,
+      String(contact?.customData?.[field.key] ?? (field.key === "lead_temperature" ? "Warm" : "")),
+    ])),
+  }));
+
+  const matchingClients = useMemo(() => {
+    const query = values.name.trim().toLocaleLowerCase();
+    if (!isHomigo || contact || selectedExistingId !== null || query.length < 2) return [];
+    return data.customers
+      .filter((client) => client.customData?.record_type !== "staff")
+      .filter((client) => [client.name, client.phone, client.email].some((value) =>
+        String(value || "").toLocaleLowerCase().includes(query),
+      ))
+      .slice(0, 6);
+  }, [contact, data.customers, isHomigo, selectedExistingId, values.name]);
+
+  const updateField = (key: string, value: string) => {
+    setValues((current) => ({ ...current, [key]: value }));
+  };
+
+  const selectExistingClient = (client: CustomerView) => {
+    setSelectedExistingId(client.id);
+    setValues({
+      name: client.name,
+      phone: client.phone,
+      email: client.email,
+      company: client.company,
+      segment: client.segment,
+      totalValue: String(client.totalValue ?? 0),
+      ...Object.fromEntries(data.profile.customFields.map((field) => [
+        field.key,
+        String(client.customData?.[field.key] ?? (field.key === "lead_temperature" ? "Warm" : "")),
+      ])),
+    });
+  };
+
+  const clearExistingSelection = () => {
+    setSelectedExistingId(null);
+    setValues((current) => ({
+      ...current,
+      name: "",
+      phone: "",
+      email: "",
+      company: "",
+      segment: "Active",
+      totalValue: "0",
+      ...Object.fromEntries(data.profile.customFields.map((field) => [field.key, field.key === "lead_temperature" ? "Warm" : ""])),
+    }));
+  };
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
-    const values = Object.fromEntries(new FormData(event.currentTarget).entries());
+    const existingClient = contact ?? (selectedExistingId
+      ? data.customers.find((client) => client.id === selectedExistingId) ?? null
+      : null);
     const customData = isHomigo
-      ? { ...(contact?.customData || {}), ...Object.fromEntries(data.profile.customFields.map((field) => [field.key, String(values[field.key] ?? "")])) }
+      ? {
+          ...(existingClient?.customData || {}),
+          ...Object.fromEntries(data.profile.customFields.map((field) => [field.key, String(values[field.key] ?? "")])),
+        }
       : undefined;
     await onSave({
-      action: contact ? "updateContact" : "createContact",
-      ...(contact ? { id: contact.id } : {}),
+      action: existingClient ? "updateContact" : "createContact",
+      ...(existingClient ? { id: existingClient.id } : {}),
       ...values,
       totalValue: Number(values.totalValue ?? 0),
       ...(customData ? { customData } : {}),
     });
     setSaving(false);
   };
+
+  const input = (key: string, label: string, props: Record<string, unknown> = {}) => (
+    <Field label={label}>
+      <input
+        {...props}
+        name={key}
+        value={values[key] ?? ""}
+        onChange={(event) => updateField(key, event.target.value)}
+      />
+    </Field>
+  );
+
   return (
     <Modal
       title={contact ? (isHomigo ? "Edit client" : "Edit contact") : (isHomigo ? "Add client" : "Add contact")}
-      subtitle={contact ? "Keep this client and service record up to date." : `Add a ${data.profile.customerLabel.toLowerCase()} to ${data.organization.name}.`}
+      subtitle={contact ? "Keep this client and service record up to date." : "Add a " + data.profile.customerLabel.toLowerCase() + " to " + data.organization.name + "."}
       onClose={onClose}
-      footer={<><button className="btn btn-secondary" type="button" onClick={onClose}>Cancel</button><button className="btn btn-primary" type="submit" form="contact-form" disabled={saving}>{saving ? <span className="spinner" /> : <Check size={15} />} {contact ? "Save changes" : (isHomigo ? "Add client" : "Create contact")}</button></>}
+      wide={isHomigo}
+      footer={<><button className="btn btn-secondary" type="button" onClick={onClose}>Cancel</button><button className="btn btn-primary" type="submit" form="contact-form" disabled={saving}>{saving ? <span className="spinner" /> : <Check size={15} />} {contact || selectedExistingId ? "Update client" : (isHomigo ? "Add client" : "Create contact")}</button></>}
     >
       <form id="contact-form" onSubmit={submit} className="form-grid">
-        <Field label={isHomigo ? "Client / contact name" : "Full name"} required><input name="name" required autoFocus defaultValue={contact?.name ?? ""} placeholder={isHomigo ? "Client name" : "Contact name"} /></Field>
-        <Field label="Phone" required><input name="phone" type="tel" required defaultValue={contact?.phone ?? ""} placeholder="+91 98765 43210" /></Field>
-        <Field label="Email"><input name="email" type="email" defaultValue={contact?.email ?? ""} placeholder="name@company.com" /></Field>
-        <Field label={isHomigo ? "Property / account type" : "Company"}><input name="company" defaultValue={contact?.company ?? ""} placeholder={isHomigo ? "House, apartment, resort..." : "Company name"} /></Field>
-        <Field label="Client status"><select name="segment" defaultValue={contact?.segment ?? "Active"}><option>Active</option><option>Hot Lead</option><option>VIP</option><option>New</option><option>Inactive</option></select></Field>
-        <Field label={isHomigo ? "Recorded client value (₹)" : "Lifetime value"}><input name="totalValue" type="number" min="0" defaultValue={contact?.totalValue ?? 0} /></Field>
+        <Field label={isHomigo ? "Client / contact name" : "Full name"} required>
+          <input
+            name="name"
+            required
+            autoFocus
+            value={values.name}
+            onChange={(event) => updateField("name", event.target.value)}
+            placeholder={isHomigo ? "Type client name to search existing clients" : "Contact name"}
+            autoComplete="off"
+          />
+          {matchingClients.length > 0 && (
+            <div className="mobile-list" style={{ marginTop: 8 }}>
+              <small className="muted-note">Existing clients found — select one to autofill saved details</small>
+              {matchingClients.map((client) => (
+                <button
+                  key={client.id}
+                  type="button"
+                  className="mobile-row"
+                  onClick={() => selectExistingClient(client)}
+                  style={{ width: "100%", textAlign: "left", cursor: "pointer" }}
+                >
+                  <div className="mobile-row-top">
+                    <div className="person">
+                      <Avatar name={client.name} size="sm" />
+                      <div><strong>{client.name}</strong><small>{client.phone}{client.email ? " · " + client.email : ""}</small></div>
+                    </div>
+                    <span className="badge badge-gray">Use saved client</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          {selectedExistingId !== null && (
+            <div className="field full">
+              <small className="muted-note">Existing client selected. Saving will update this profile instead of creating a duplicate.</small>
+              {!contact && <button type="button" className="btn btn-secondary btn-sm" onClick={clearExistingSelection}>Use as a new client instead</button>}
+            </div>
+          )}
+        </Field>
+        {input("phone", "Phone", { type: "tel", required: true, placeholder: "+91 98765 43210" })}
+        {input("email", "Email", { type: "email", placeholder: "name@company.com" })}
+        {input("company", isHomigo ? "Property / account type" : "Company", { placeholder: isHomigo ? "House, apartment, resort..." : "Company name" })}
+        <Field label="Client status">
+          <select name="segment" value={values.segment} onChange={(event) => updateField("segment", event.target.value)}>
+            <option>Active</option><option>Hot Lead</option><option>VIP</option><option>New</option><option>Inactive</option>
+          </select>
+        </Field>
+        <Field label={isHomigo ? "Recorded client value (₹)" : "Lifetime value"}>
+          <input name="totalValue" type="number" min="0" value={values.totalValue} onChange={(event) => updateField("totalValue", event.target.value)} />
+        </Field>
         {isHomigo && data.profile.customFields.map((field) => (
           <Field key={field.key} label={field.label}>
             {field.key === "service_type"
-              ? <select name={field.key} defaultValue={String(contact?.customData[field.key] ?? "")}><option value="">Select service type</option>{["Full-time maid", "Live-in maid", "Part-time maid", "House cleaning", "Kitchen cleaning", "Elder care", "Child care", "Other"].map((option) => <option key={option}>{option}</option>)}</select>
+              ? <select name={field.key} value={values[field.key] ?? ""} onChange={(event) => updateField(field.key, event.target.value)}><option value="">Select service type</option>{["Full-time maid", "Live-in maid", "Part-time maid", "House cleaning", "Kitchen cleaning", "Elder care", "Child care", "Other"].map((option) => <option key={option}>{option}</option>)}</select>
               : field.key === "lead_temperature"
-                ? <select name={field.key} defaultValue={String(contact?.customData[field.key] ?? "Warm")}><option>Hot</option><option>Warm</option><option>Cold</option></select>
-                : <input name={field.key} type={field.key === "area_sqft" ? "number" : "text"} min={field.key === "area_sqft" ? "0" : undefined} defaultValue={String(contact?.customData[field.key] ?? "")} placeholder={field.label} />}
+                ? <select name={field.key} value={values[field.key] ?? "Warm"} onChange={(event) => updateField(field.key, event.target.value)}><option>Hot</option><option>Warm</option><option>Cold</option></select>
+                : <input name={field.key} type={field.key === "area_sqft" ? "number" : "text"} min={field.key === "area_sqft" ? "0" : undefined} value={values[field.key] ?? ""} onChange={(event) => updateField(field.key, event.target.value)} placeholder={field.label} />}
           </Field>
         ))}
       </form>
