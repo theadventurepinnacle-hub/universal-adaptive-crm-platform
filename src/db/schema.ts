@@ -1,6 +1,7 @@
 import {
   bigserial,
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -273,6 +274,28 @@ export const placementDetails = pgTable(
     index("placement_details_org_idx").on(table.organizationId),
     index("placement_details_maid_idx").on(table.maidId),
     index("placement_details_client_idx").on(table.clientId),
+  ],
+);
+
+export const attendanceRecords = pgTable(
+  "attendance_records",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: integer("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    placementId: integer("placement_id").notNull().references(() => placementDetails.id, { onDelete: "cascade" }),
+    maidId: integer("maid_id").notNull().references(() => customers.id, { onDelete: "cascade" }),
+    workDate: date("work_date").notNull(),
+    status: text("status").notNull().default("Present"),
+    checkIn: text("check_in"),
+    checkOut: text("check_out"),
+    notes: text("notes").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("attendance_records_placement_date_unique").on(table.placementId, table.workDate),
+    index("attendance_records_org_date_idx").on(table.organizationId, table.workDate),
+    index("attendance_records_maid_date_idx").on(table.maidId, table.workDate),
   ],
 );
 
