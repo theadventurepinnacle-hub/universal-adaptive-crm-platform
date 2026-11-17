@@ -32,7 +32,9 @@ export function QuickAddModal({ data, initialType = "lead", onClose, onSubmit }:
     setSaving(true);
     const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
     await onSubmit(type === "lead"
-      ? { action: "createLead", ...payload, expectedValue: Number(payload.expectedValue ?? 0), customData: { [data.profile.customFields[0].key]: String(payload.customField ?? "") } }
+      ? { action: "createLead", ...payload, expectedValue: Number(payload.budget ?? payload.expectedValue ?? 0), customData: data.profile.leadFields?.length
+        ? Object.fromEntries(data.profile.leadFields.map((field) => [field.key, String(payload[field.key] ?? "")]))
+        : { [data.profile.customFields[0].key]: String(payload.customField ?? "") } }
       : { action: "createTask", ...payload });
     setSaving(false);
   };
@@ -50,14 +52,18 @@ export function QuickAddModal({ data, initialType = "lead", onClose, onSubmit }:
       </div>
       <form id="quick-add" onSubmit={submit} className="form-grid mt">
         {type === "lead" ? <>
-          <Field label="Full name" required><input name="name" required autoFocus placeholder="Customer name" /></Field>
+          <Field label={data.profile.customerLabel === "Client" ? "Client / contact name" : "Full name"} required><input name="name" required autoFocus placeholder={data.profile.customerLabel === "Client" ? "Client name" : "Customer name"} /></Field>
           <Field label="Phone" required><input name="phone" type="tel" required placeholder="+91 98765 43210" /></Field>
           <Field label="Email"><input name="email" type="email" placeholder="name@company.com" /></Field>
           <Field label="Source"><select name="source" defaultValue={data.profile.sources[0]}>{data.profile.sources.map((source) => <option key={source}>{source}</option>)}</select></Field>
           <Field label="Priority"><select name="priority" defaultValue="Medium"><option>High</option><option>Medium</option><option>Low</option></select></Field>
-          <Field label="Expected value"><input name="expectedValue" type="number" min="0" placeholder="50000" /></Field>
+          {data.profile.customerLabel !== "Client" && <Field label="Expected value"><input name="expectedValue" type="number" min="0" placeholder="50000" /></Field>}
           <Field label="First follow-up"><input name="nextFollowUp" type="datetime-local" defaultValue={defaultDate} /></Field>
-          <Field label={data.profile.customFields[0].label}><input name="customField" placeholder={data.profile.customFields[0].label} /></Field>
+          {data.profile.leadFields?.length ? data.profile.leadFields.map((field) => <Field key={field.key} label={field.label}>
+            {field.options
+              ? <select name={field.key} defaultValue=""><option value="">Select {field.label.toLowerCase()}</option>{field.options.map((option) => <option key={option}>{option}</option>)}</select>
+              : <input name={field.key} type={field.type === "number" ? "number" : "text"} min={field.type === "number" ? "0" : undefined} placeholder={field.label} />}
+          </Field>) : <Field label={data.profile.customFields[0].label}><input name="customField" placeholder={data.profile.customFields[0].label} /></Field>}
         </> : <>
           <Field label="What needs to be done?" required><input name="title" required autoFocus placeholder="Send quotation to Rahul" /></Field>
           <Field label="Related to"><select name="relatedName" defaultValue=""><option value="">General task</option>{data.leads.map((lead) => <option key={lead.id}>{lead.name}</option>)}</select></Field>
@@ -237,10 +243,10 @@ export function LeadDrawer({ data, lead, onClose, onAction, onAssign, onStage }:
         </div>
 
         <section className="drawer-section">
-          <div className="drawer-section-head"><h3>Sales progress</h3><Status value={lead.stage} /></div>
+          <div className="drawer-section-head"><h3>{data.organization.slug === "homigo" ? "Request progress" : "Sales progress"}</h3><Status value={lead.stage} /></div>
           <div className="stage-progress">{data.stages.map((stage, index) => <i key={stage.id} style={{ background: index <= currentIndex ? stage.color : "#333635" }} title={stage.name} />)}</div>
           <div className="drawer-value-row">
-            <div><span>Expected value</span><strong>{money(lead.expectedValue, false)}</strong></div>
+            <div><span>{data.organization.slug === "homigo" ? "Estimated budget / value" : "Expected value"}</span><strong>{money(lead.expectedValue, false)}</strong></div>
             <span className="select-inline">
               <select value={String(lead.stageId)} onChange={(event) => onStage(lead, Number(event.target.value))} aria-label="Move lead stage">
                 {data.stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.name}</option>)}
@@ -269,9 +275,9 @@ export function LeadDrawer({ data, lead, onClose, onAction, onAssign, onStage }:
         </section>
 
         <section className="drawer-section">
-          <h3>{data.organization.industry} details</h3>
+          <h3>{data.organization.slug === "homigo" ? "Service requirement" : data.organization.industry + " details"}</h3>
           <div className="detail-grid">
-            {data.profile.customFields.map((field) => <div key={field.key}><span>{field.label}</span><strong>{lead.customData[field.key] || "Not added"}</strong></div>)}
+            {(data.profile.leadFields || data.profile.customFields).map((field) => <div key={field.key}><span>{field.label}</span><strong>{lead.customData[field.key] || "Not added"}</strong></div>)}
           </div>
         </section>
 
