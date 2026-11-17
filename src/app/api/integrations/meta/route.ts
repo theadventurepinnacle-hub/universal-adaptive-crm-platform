@@ -3,14 +3,14 @@ import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { integrationCredentials } from "@/db/schema";
 import { getAuthenticatedSession, isSameOrigin } from "@/lib/auth";
-import { getAdventureOrganization } from "@/lib/meta-ingest";
+import { getHomigoOrganization } from "@/lib/meta-ingest";
 import { encryptMetaSecret } from "@/lib/meta-crypto";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   if (!(await getAuthenticatedSession())) return Response.json({ error: "Authentication required" }, { status: 401 });
-  const organization = await getAdventureOrganization();
+  const organization = await getHomigoOrganization();
   const [row] = await db.select({
     appId: integrationCredentials.appId,
     accessTokenCiphertext: integrationCredentials.accessTokenCiphertext,
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     const accessToken = typeof body.accessToken === "string" ? body.accessToken.trim() : "";
     if (appId && !/^\d{5,30}$/.test(appId)) return Response.json({ error: "Enter a valid Meta App ID." }, { status: 400 });
     if (!appSecret && !accessToken) return Response.json({ error: "Enter the Meta App Secret or Page Access Token to save." }, { status: 400 });
-    const organization = await getAdventureOrganization();
+    const organization = await getHomigoOrganization();
     const [existing] = await db.select().from(integrationCredentials).where(
       and(eq(integrationCredentials.organizationId, organization.id), eq(integrationCredentials.provider, "meta")),
     ).limit(1);
