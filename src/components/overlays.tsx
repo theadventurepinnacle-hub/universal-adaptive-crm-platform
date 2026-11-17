@@ -85,32 +85,46 @@ export function ContactModal({ data, contact, onClose, onSave }: {
   onSave: (payload: Record<string, unknown>) => Promise<void>;
 }) {
   const [saving, setSaving] = useState(false);
+  const isHomigo = data.organization.slug === "homigo";
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
     const values = Object.fromEntries(new FormData(event.currentTarget).entries());
+    const customData = isHomigo
+      ? { ...(contact?.customData || {}), ...Object.fromEntries(data.profile.customFields.map((field) => [field.key, String(values[field.key] ?? "")])) }
+      : undefined;
     await onSave({
       action: contact ? "updateContact" : "createContact",
       ...(contact ? { id: contact.id } : {}),
       ...values,
       totalValue: Number(values.totalValue ?? 0),
+      ...(customData ? { customData } : {}),
     });
     setSaving(false);
   };
   return (
     <Modal
-      title={contact ? "Edit contact" : "Add contact"}
-      subtitle={contact ? "Keep this relationship up to date." : `Add a ${data.profile.customerLabel.toLowerCase()} to ${data.organization.name}.`}
+      title={contact ? (isHomigo ? "Edit client" : "Edit contact") : (isHomigo ? "Add client" : "Add contact")}
+      subtitle={contact ? "Keep this client and service record up to date." : `Add a ${data.profile.customerLabel.toLowerCase()} to ${data.organization.name}.`}
       onClose={onClose}
-      footer={<><button className="btn btn-secondary" type="button" onClick={onClose}>Cancel</button><button className="btn btn-primary" type="submit" form="contact-form" disabled={saving}>{saving ? <span className="spinner" /> : <Check size={15} />} {contact ? "Save changes" : "Create contact"}</button></>}
+      footer={<><button className="btn btn-secondary" type="button" onClick={onClose}>Cancel</button><button className="btn btn-primary" type="submit" form="contact-form" disabled={saving}>{saving ? <span className="spinner" /> : <Check size={15} />} {contact ? "Save changes" : (isHomigo ? "Add client" : "Create contact")}</button></>}
     >
       <form id="contact-form" onSubmit={submit} className="form-grid">
-        <Field label="Full name" required><input name="name" required autoFocus defaultValue={contact?.name ?? ""} placeholder="Contact name" /></Field>
+        <Field label={isHomigo ? "Client / contact name" : "Full name"} required><input name="name" required autoFocus defaultValue={contact?.name ?? ""} placeholder={isHomigo ? "Client name" : "Contact name"} /></Field>
         <Field label="Phone" required><input name="phone" type="tel" required defaultValue={contact?.phone ?? ""} placeholder="+91 98765 43210" /></Field>
         <Field label="Email"><input name="email" type="email" defaultValue={contact?.email ?? ""} placeholder="name@company.com" /></Field>
-        <Field label="Company"><input name="company" defaultValue={contact?.company ?? ""} placeholder="Company name" /></Field>
-        <Field label="Status"><select name="segment" defaultValue={contact?.segment ?? "Active"}><option>Active</option><option>VIP</option><option>New</option><option>Inactive</option></select></Field>
-        <Field label="Lifetime value"><input name="totalValue" type="number" min="0" defaultValue={contact?.totalValue ?? 0} /></Field>
+        <Field label={isHomigo ? "Property / account type" : "Company"}><input name="company" defaultValue={contact?.company ?? ""} placeholder={isHomigo ? "House, apartment, resort..." : "Company name"} /></Field>
+        <Field label="Client status"><select name="segment" defaultValue={contact?.segment ?? "Active"}><option>Active</option><option>Hot Lead</option><option>VIP</option><option>New</option><option>Inactive</option></select></Field>
+        <Field label={isHomigo ? "Recorded client value (₹)" : "Lifetime value"}><input name="totalValue" type="number" min="0" defaultValue={contact?.totalValue ?? 0} /></Field>
+        {isHomigo && data.profile.customFields.map((field) => (
+          <Field key={field.key} label={field.label}>
+            {field.key === "service_type"
+              ? <select name={field.key} defaultValue={String(contact?.customData[field.key] ?? "")}><option value="">Select service type</option>{["Full-time maid", "Live-in maid", "Part-time maid", "House cleaning", "Kitchen cleaning", "Elder care", "Child care", "Other"].map((option) => <option key={option}>{option}</option>)}</select>
+              : field.key === "lead_temperature"
+                ? <select name={field.key} defaultValue={String(contact?.customData[field.key] ?? "Warm")}><option>Hot</option><option>Warm</option><option>Cold</option></select>
+                : <input name={field.key} type={field.key === "area_sqft" ? "number" : "text"} min={field.key === "area_sqft" ? "0" : undefined} defaultValue={String(contact?.customData[field.key] ?? "")} placeholder={field.label} />}
+          </Field>
+        ))}
       </form>
     </Modal>
   );
