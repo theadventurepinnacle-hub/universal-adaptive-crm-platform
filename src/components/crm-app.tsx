@@ -7,6 +7,7 @@ import {
 } from "@/components/overlays";
 import { Avatar } from "@/components/ui";
 import { MaidDirectoryView } from "@/components/maid-directory";
+import { AttendanceView } from "@/components/attendance-view";
 import {
   CalendarView, CompaniesView, ContactsView, DealsView, LeadsView, MoreView, PaymentsView, PipelineView,
   QuotationsView, ReportsView, SettingsView, TasksView,
@@ -149,6 +150,7 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
     if (success) setContactModal(null);
   };
   const saveMaid = async (payload: Record<string, unknown>, success: string) => mutate(payload, success);
+  const saveAttendance = async (payload: Record<string, unknown>, success: string) => mutate(payload, success);
   const saveDeal = async (payload: Record<string, unknown>) => {
     const success = await mutate(payload, "Deal added to pipeline");
     if (success) setDealModal(false);
@@ -303,7 +305,9 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
           {view === "deals" && <DealsView data={data} onAdd={() => setDealModal(true)} onOpen={(deal) => { if (deal.contactId) setSelectedContactId(deal.contactId); else showToast(`${deal.title} · ${deal.stage}`); }} onStage={(deal, stageId) => moveDeal(deal, stageId)} />}
           {view === "pipeline" && <PipelineView data={data} onOpen={(deal) => { if (deal.contactId) setSelectedContactId(deal.contactId); }} onSettings={() => navigate("settings")} />}
           {view === "tasks" && <TasksView data={data} onAdd={() => setQuickAdd("task")} onComplete={completeTask} />}
-          {view === "calendar" && <CalendarView data={data} onAdd={() => setQuickAdd("task")} onComplete={completeTask} />}
+          {view === "calendar" && (data.organization.slug === "homigo"
+            ? <AttendanceView data={data} onSave={saveAttendance} />
+            : <CalendarView data={data} onAdd={() => setQuickAdd("task")} onComplete={completeTask} />)}
           {view === "reports" && <ReportsView data={data} onToast={showToast} />}
           {view === "quotations" && <QuotationsView data={data} onToast={showToast} />}
           {view === "payments" && <PaymentsView data={data} onCollect={collect} />}
