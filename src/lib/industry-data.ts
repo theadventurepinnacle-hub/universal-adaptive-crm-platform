@@ -26,7 +26,7 @@ export const industryProfiles: Record<IndustryKey, IndustryProfile> = {
     attention: [],
     insights: [],
     chart: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((label) => ({ label, value: 0 })),
-  },,
+  },
   homigo: {
     label: "Maid Supply & Home Services",
     eyebrow: "Clients, service requests & maid placements",
