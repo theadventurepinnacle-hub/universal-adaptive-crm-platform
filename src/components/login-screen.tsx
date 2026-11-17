@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import { ArrowRight, Compass, LockKeyhole, Mountain, ShieldCheck, Sparkles } from "lucide-react";
 
 function Brand() {
-  return <div className="brand"><span className="brand-mark"><Mountain size={17} strokeWidth={2.2} /></span><span className="brand-text">The Adventure Pinnacle</span></div>;
+  return <div className="brand"><span className="brand-mark"><Mountain size={17} strokeWidth={2.2} /></span><span className="brand-text">HOMIGO</span></div>;
 }
 
 export default function LoginScreen() {
