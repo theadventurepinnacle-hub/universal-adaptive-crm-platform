@@ -108,7 +108,6 @@ export type DealView = {
   clientFee?: number;
   placementStatus?: string;
   placementNotes?: string;
-  placementStatus?: string;
 };
 
 export type CompanyView = {
