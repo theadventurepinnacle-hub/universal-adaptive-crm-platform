@@ -260,6 +260,61 @@ async function resolveOrganization(slug: IndustryKey) {
   return organization;
 }
 
+export async function saveAttendance(slug: IndustryKey, input: {
+  placementId: number;
+  maidId: number;
+  workDate: string;
+  status: string;
+  checkIn?: string;
+  checkOut?: string;
+  notes?: string;
+}) {
+  if (slug !== "homigo") throw new Error("Attendance is available in the HOMIGO workspace only");
+  const organization = await resolveOrganization(slug);
+  const validStatuses = new Set(["Present", "Absent", "Leave", "Weekly Off", "Holiday"]);
+  if (!validStatuses.has(input.status)) throw new Error("Choose a valid attendance status");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.workDate)) throw new Error("Choose a valid attendance date");
+  const [placement] = await db.select().from(placementDetails).where(
+    and(eq(placementDetails.id, input.placementId), eq(placementDetails.organizationId, organization.id)),
+  ).limit(1);
+  if (!placement) throw new Error("Placement not found");
+  if (placement.maidId !== input.maidId) throw new Error("Maid does not match this placement");
+  const [maid] = await db.select().from(customers).where(
+    and(eq(customers.id, input.maidId), eq(customers.organizationId, organization.id)),
+  ).limit(1);
+  if (!maid || maid.customData?.record_type !== "staff") throw new Error("Maid profile not found");
+  await db.insert(attendanceRecords).values({
+    organizationId: organization.id,
+    placementId: input.placementId,
+    maidId: input.maidId,
+    workDate: input.workDate,
+    status: input.status,
+    checkIn: input.checkIn?.trim() || null,
+    checkOut: input.checkOut?.trim() || null,
+    notes: input.notes?.trim() || "",
+    updatedAt: new Date(),
+  }).onConflictDoUpdate({
+    target: [attendanceRecords.placementId, attendanceRecords.workDate],
+    set: {
+      maidId: input.maidId,
+      status: input.status,
+      checkIn: input.checkIn?.trim() || null,
+      checkOut: input.checkOut?.trim() || null,
+      notes: input.notes?.trim() || "",
+      updatedAt: new Date(),
+    },
+  });
+  await db.insert(activities).values({
+    organizationId: organization.id,
+    actorId: null,
+    customerId: input.maidId,
+    type: "attendance",
+    title: "Maid attendance updated",
+    detail: `${maid.name} · ${input.status} · ${input.workDate}`,
+  });
+  return getWorkspaceData(slug);
+}
+
 export async function createLead(input: CreateLeadInput) {
   const organization = await resolveOrganization(input.organizationSlug);
   const [pipeline] = await db.select().from(pipelines).where(and(eq(pipelines.organizationId, organization.id), eq(pipelines.isDefault, true))).limit(1);
