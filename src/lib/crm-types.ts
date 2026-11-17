@@ -171,6 +171,11 @@ export type IndustryProfile = {
   eyebrow: string;
   leadLabel: string;
   leadPlural: string;
+  maidLabel?: string;
+  maidPlural?: string;
+  dealLabel?: string;
+  dealPlural?: string;
+  leadFields?: Array<{ label: string; key: string; type?: string; options?: string[] }>;
   customerLabel: string;
   customerPlural: string;
   productLabel: string;
@@ -191,6 +196,7 @@ export type WorkspaceData = {
   stages: StageView[];
   leads: LeadView[];
   customers: CustomerView[];
+  maids: MaidView[];
   deals: DealView[];
   companies: CompanyView[];
   tasks: TaskView[];
@@ -229,6 +235,7 @@ export type CreateContactInput = {
   company: string;
   segment: string;
   totalValue: number;
+  customData?: Record<string, unknown>;
 };
 
 export type CreateDealInput = {
