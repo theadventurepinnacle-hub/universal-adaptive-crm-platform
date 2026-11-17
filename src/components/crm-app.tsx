@@ -194,7 +194,7 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
         { label: "OVERVIEW", items: [{ key: "dashboard", label: "Dashboard", icon: LayoutDashboard }, { key: "contacts", label: "Travellers", icon: Users }, { key: "companies", label: "Travel Partners", icon: Building2 }] },
         { label: "ENQUIRIES & BOOKINGS", items: [{ key: "leads", label: "Enquiries", icon: Target, badge: data.leads.length }, { key: "deals", label: "Trip Bookings", icon: Handshake, badge: data.deals.length }, { key: "pipeline", label: "Booking Pipeline", icon: TrendingUp }] },
         { label: "WORKSPACE", items: [{ key: "tasks", label: "Tasks", icon: ListChecks, badge: openTasks }, { key: "calendar", label: "Calendar", icon: CalendarDays }, { key: "reports", label: "Reports", icon: BarChart3 }] },
-        { label: "FINANCE", items: [{ key: "quotations", label: "Quotations", icon: FileText }, { key: "payments", label: "Payments", icon: Wallet }] },
+        { label: "FINANCE", items: [{ key: "quotations", label: "Service Agreements", icon: FileText }, { key: "payments", label: "Payments", icon: Wallet }] },
       ];
 
   const profileMenuContent = (
