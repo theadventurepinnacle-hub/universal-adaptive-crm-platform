@@ -14,7 +14,7 @@ import {
 import type { CustomerView, DealView, LeadView, WorkspaceData } from "@/lib/crm-types";
 import {
   BarChart3, Bell, Boxes, Building2, CalendarDays, Check, ChevronDown, ChevronRight, CircleDollarSign,
-  FileText, Handshake, KeyRound, LayoutDashboard, LayoutGrid, ListChecks, LogOut, Menu, Mountain,
+  FileText, Handshake, KeyRound, LayoutDashboard, LayoutGrid, ListChecks, LogOut, Menu, Home,
   Package, Plus, RefreshCw, Search, Settings, ShieldCheck, Sparkles, Target, TrendingUp, Truck, Users,
   Wallet, X,
 } from "lucide-react";
@@ -31,10 +31,10 @@ const pageTitles: Record<ViewKey, string> = {
   quotations: "Service Agreements", payments: "Payments & Dues", settings: "Settings", more: "More",
 };
 
-const industryIcons: Record<string, LucideIcon> = { shield: ShieldCheck, refresh: RefreshCw, file: FileText, wallet: Wallet, building: Building2, calendar: CalendarDays, key: KeyRound, grid: LayoutGrid, package: Package, boxes: Boxes, bag: FileText, truck: Truck };
+const industryIcons: Record<string, LucideIcon> = { shield: ShieldCheck, refresh: RefreshCw, file: FileText, wallet: Wallet, building: Building2, calendar: CalendarDays, key: KeyRound, grid: LayoutGrid, package: Package, boxes: Boxes, bag: FileText, truck: Truck, users: Users };
 
 function Logo({ compact = false, brandName = "HOMIGO" }: { compact?: boolean; brandName?: string }) {
-  return <div className="brand"><span className="brand-mark"><Mountain size={17} strokeWidth={2.2} /></span>{!compact && <span className="brand-text">{brandName}</span>}</div>;
+  return <div className="brand"><span className="brand-mark"><Home size={17} strokeWidth={2.2} /></span>{!compact && <span className="brand-text">{brandName}</span>}</div>;
 }
 
 export default function CrmApp({ initialData }: { initialData: WorkspaceData }) {
