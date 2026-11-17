@@ -210,6 +210,20 @@ export type IndustryProfile = {
   chart: ChartPoint[];
 };
 
+export type AttendanceView = {
+  id: number;
+  placementId: number;
+  maidId: number;
+  maidName: string;
+  clientName: string;
+  placementTitle: string;
+  workDate: string;
+  status: string;
+  checkIn: string;
+  checkOut: string;
+  notes: string;
+};
+
 export type WorkspaceData = {
   organization: OrganizationView;
   profile: IndustryProfile;
@@ -219,6 +233,7 @@ export type WorkspaceData = {
   leads: LeadView[];
   customers: CustomerView[];
   maids: MaidView[];
+  attendance: AttendanceView[];
   deals: DealView[];
   companies: CompanyView[];
   tasks: TaskView[];
