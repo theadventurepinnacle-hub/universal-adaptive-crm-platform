@@ -1,4 +1,4 @@
-export type IndustryKey = "adventure";
+export type IndustryKey = "adventure" | "homigo";
 export type AppRole = "owner" | "employee";
 
 export type OrganizationView = {
@@ -56,7 +56,7 @@ export type LeadView = {
   createdAt: string;
 };
 
-export type CustomerView = {
+export type MaidView = {\n  id: number;\n  name: string;\n  phone: string;\n  age: string;\n  location: string;\n  serviceTypes: string;\n  availability: string;\n  workNotes: string;\n  verificationNote: string;\n  source: string;\n  avatar: string;\n};\n\nexport type CustomerView = {
   id: number;
   name: string;
   company: string;
