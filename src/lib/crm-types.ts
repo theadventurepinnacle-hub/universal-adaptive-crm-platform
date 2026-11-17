@@ -144,6 +144,9 @@ export type PaymentView = {
   paidAmount: number;
   dueAt: string;
   status: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  customerAddress?: string;
 };
 
 export type QuoteView = {
