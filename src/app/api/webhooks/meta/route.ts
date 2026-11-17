@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest } from "next/server";
-import { getAdventureOrganization, getMetaCredentials, handleMetaWebhookPayload } from "@/lib/meta-ingest";
+import { getHomigoOrganization, getMetaCredentials, handleMetaWebhookPayload } from "@/lib/meta-ingest";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   const rawBody = await request.text();
   const signature = request.headers.get("x-hub-signature-256") || "";
   try {
-    const organization = await getAdventureOrganization();
+    const organization = await getHomigoOrganization();
     const credentials = await getMetaCredentials(organization.id);
     if (!credentials?.appSecret) {
       return Response.json({ error: "Meta app credentials have not been saved in CRM Settings" }, { status: 503 });
