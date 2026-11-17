@@ -38,17 +38,17 @@ export function ContactsView({ data, onAdd, onView, onEdit, onDelete }: {
   return (
     <div className="page">
       <PageHead
-        eyebrow="RELATIONSHIPS"
-        title="Travellers"
-        subtitle={`${data.customers.length} travellers across ${data.companies.length} travel partners`}
-        actions={<><ExportButton onClick={exportRows} /><button className="btn btn-primary" onClick={onAdd}><Plus size={16} /> Add traveller</button></>}
+        eyebrow="CLIENT MANAGEMENT"
+        title={data.profile.customerPlural}
+        subtitle={data.organization.slug === "homigo" ? `${data.customers.length} client records · keep service history and follow-ups together` : `${data.customers.length} travellers across ${data.companies.length} travel partners`}
+        actions={<><ExportButton onClick={exportRows} /><button className="btn btn-primary" onClick={onAdd}><Plus size={16} /> {data.organization.slug === "homigo" ? "Add client" : "Add traveller"}</button></>}
       />
 
       <section className="summary-row">
         <div className="summary-card"><span className="summary-icon mint"><Users size={16} /></span><div><small>{data.profile.customerPlural}</small><strong>{data.customers.length}</strong></div></div>
         <div className="summary-card"><span className="summary-icon yellow"><Target size={16} /></span><div><small>{data.organization.slug === "homigo" ? "Active clients" : "Active travellers"}</small><strong>{data.customers.filter((contact) => contact.segment !== "Inactive").length}</strong></div></div>
-        <div className="summary-card"><span className="summary-icon lilac"><Building2 size={16} /></span><div><small>Companies</small><strong>{data.companies.length}</strong></div></div>
-        <div className="summary-card"><span className="summary-icon peach"><Wallet size={16} /></span><div><small>Lifetime value</small><strong>{money(data.customers.reduce((sum, contact) => sum + contact.totalValue, 0))}</strong></div></div>
+        <div className="summary-card"><span className="summary-icon lilac"><Building2 size={16} /></span><div><small>{data.organization.slug === "homigo" ? "Property / account types" : "Companies"}</small><strong>{data.companies.length}</strong></div></div>
+        <div className="summary-card"><span className="summary-icon peach"><Wallet size={16} /></span><div><small>{data.organization.slug === "homigo" ? "Recorded client value" : "Lifetime value"}</small><strong>{money(data.customers.reduce((sum, contact) => sum + contact.totalValue, 0))}</strong></div></div>
       </section>
 
       <Card pad={false}>
@@ -330,9 +330,9 @@ export function DealsView({ data, onAdd, onOpen, onStage }: {
   return (
     <div className="page">
       <PageHead
-        eyebrow="DEAL MANAGEMENT"
-        title="Trip Bookings"
-        subtitle="Drag deals between stages, or update the stage from each card"
+        eyebrow={data.organization.slug === "homigo" ? "PLACEMENT MANAGEMENT" : "DEAL MANAGEMENT"}
+        title={data.organization.slug === "homigo" ? "Maid Placements" : "Trip Bookings"}
+        subtitle={data.organization.slug === "homigo" ? "Track shortlisted workers, start dates, placement value and current stage" : "Drag deals between stages, or update the stage from each card"}
         actions={<>
           <div className="view-switch"><button className={mode === "board" ? "active" : ""} onClick={() => setMode("board")}><LayoutGrid size={14} /> Board</button><button className={mode === "list" ? "active" : ""} onClick={() => setMode("list")}><List size={14} /> List</button></div>
           <button className="btn btn-primary" onClick={onAdd}><Plus size={16} /> {data.organization.slug === "homigo" ? "New placement" : "New deal"}</button>
@@ -340,10 +340,10 @@ export function DealsView({ data, onAdd, onOpen, onStage }: {
       />
 
       <section className="summary-row">
-        <div className="summary-card"><span className="summary-icon yellow"><CircleDollarSign size={16} /></span><div><small>Pipeline value</small><strong>{money(total)}</strong></div></div>
-        <div className="summary-card"><span className="summary-icon mint"><TrendingUp size={16} /></span><div><small>Weighted forecast</small><strong>{money(weighted)}</strong></div></div>
+        <div className="summary-card"><span className="summary-icon yellow"><CircleDollarSign size={16} /></span><div><small>{data.organization.slug === "homigo" ? "Placement value" : "Pipeline value"}</small><strong>{money(total)}</strong></div></div>
+        <div className="summary-card"><span className="summary-icon mint"><TrendingUp size={16} /></span><div><small>{data.organization.slug === "homigo" ? "Weighted placement forecast" : "Weighted forecast"}</small><strong>{money(weighted)}</strong></div></div>
         <div className="summary-card"><span className="summary-icon lilac"><Handshake size={16} /></span><div><small>{data.profile.dealPlural || "Open deals"}</small><strong>{data.deals.length}</strong></div></div>
-        <div className="summary-card"><span className="summary-icon peach"><CalendarDays size={16} /></span><div><small>Closing this month</small><strong>{closing}</strong></div></div>
+        <div className="summary-card"><span className="summary-icon peach"><CalendarDays size={16} /></span><div><small>{data.organization.slug === "homigo" ? "Starting this month" : "Closing this month"}</small><strong>{closing}</strong></div></div>
       </section>
 
       {mode === "board" ? (
@@ -385,7 +385,7 @@ export function DealsView({ data, onAdd, onOpen, onStage }: {
         <Card pad={false}>
           <div className="table-wrap">
             <table className="data-table">
-              <thead><tr><th>Deal</th><th>Stage</th><th>Company</th><th>Value</th><th>Probability</th><th>Expected close</th><th>Owner</th><th>Priority</th></tr></thead>
+              <thead><tr><th>{data.profile.dealLabel || "Deal"}</th><th>Stage</th><th>{data.organization.slug === "homigo" ? "Client / property" : "Company"}</th><th>Value</th><th>Probability</th><th>{data.organization.slug === "homigo" ? "Start date" : "Expected close"}</th><th>Owner</th><th>Priority</th></tr></thead>
               <tbody>
                 {data.deals.map((deal) => (
                   <tr key={deal.id} className="clickable" onClick={() => onOpen(deal)}>
@@ -404,7 +404,7 @@ export function DealsView({ data, onAdd, onOpen, onStage }: {
           </div>
         </Card>
       )}
-      <p className="board-hint"><LayoutGrid size={13} /> Tip: drag a deal card onto another stage. On mobile, use the stage selector on each card.</p>
+      <p className="board-hint"><LayoutGrid size={13} /> {data.organization.slug === "homigo" ? "Move placements from shortlist to placed as the maid starts service. Record the agreed fee and start date." : "Tip: drag a deal card onto another stage. On mobile, use the stage selector on each card."}</p>
     </div>
   );
 }
@@ -419,9 +419,9 @@ export function PipelineView({ data, onOpen, onSettings }: { data: WorkspaceData
   return (
     <div className="page">
       <PageHead
-        eyebrow="SALES OPERATIONS"
-        title="Sales pipeline"
-        subtitle={`${data.profile.pipelineName} · ${data.stages.length} stages, from first contact to won`}
+        eyebrow={data.organization.slug === "homigo" ? "MAID SUPPLY OPERATIONS" : "SALES OPERATIONS"}
+        title={data.organization.slug === "homigo" ? "Maid Placement Pipeline" : "Sales pipeline"}
+        subtitle={`${data.profile.pipelineName} · ${data.stages.length} stages, from first request to confirmed placement`}
         actions={<><button className="btn btn-secondary" onClick={onSettings}><Settings2 size={15} /> Customize stages</button><button className="btn btn-primary" onClick={() => onOpen(data.deals[0])} disabled={!data.deals.length}><Handshake size={15} /> Review deals</button></>}
       />
 
@@ -434,7 +434,7 @@ export function PipelineView({ data, onOpen, onSettings }: { data: WorkspaceData
 
       <div className="grid-main">
         <Card>
-          <CardHead title="Pipeline funnel" subtitle="Value and conversion at every stage" actions={<span className="badge badge-gray">{data.profile.pipelineName}</span>} />
+          <CardHead title={data.organization.slug === "homigo" ? "Placement progress" : "Pipeline funnel"} subtitle={data.organization.slug === "homigo" ? "Move client requests through each placement step" : "Value and conversion at every stage"} actions={<span className="badge badge-gray">{data.profile.pipelineName}</span>} />
           <div className="funnel">
             {data.stages.map((stage, index) => {
               const deals = data.deals.filter((deal) => deal.stageId === stage.id);
@@ -471,7 +471,7 @@ export function PipelineView({ data, onOpen, onSettings }: { data: WorkspaceData
             </div>
           </Card>
           <Card>
-            <CardHead title="At-risk deals" subtitle="Low probability or stale close dates" />
+            <CardHead title={data.organization.slug === "homigo" ? "Placements needing attention" : "At-risk deals"} subtitle={data.organization.slug === "homigo" ? "Review delayed shortlists, start dates and follow-ups" : "Low probability or stale close dates"} />
             <div className="risk-list">
               {data.deals.filter((deal) => deal.probability < 45 || new Date(deal.expectedCloseAt) < new Date()).slice(0, 4).map((deal) => (
                 <button key={deal.id} className="risk-item" onClick={() => onOpen(deal)}>
@@ -976,13 +976,14 @@ const moduleIcons: Record<string, typeof ShieldCheck> = { shield: ShieldCheck, r
 
 export function MoreView({ data, onNavigate, onToast }: { data: WorkspaceData; onNavigate: (view: string) => void; onToast: (message: string) => void }) {
   const items = [
-    { label: "Contacts", view: "contacts", icon: Users, sub: `${data.customers.length} relationships` },
+    { label: data.profile.customerPlural, view: "contacts", icon: Users, sub: `${data.customers.length} client records` },
+    ...(data.organization.slug === "homigo" ? [{ label: "Maid Directory", view: "maids", icon: ShieldCheck, sub: `${data.maids.length} worker profiles` }] : []),
     { label: "Companies", view: "companies", icon: Building2, sub: `${data.companies.length} companies` },
     { label: "Leads", view: "leads", icon: Target, sub: `${data.leads.length} ${data.profile.leadPlural.toLowerCase()}` },
-    { label: "Deals", view: "deals", icon: Handshake, sub: `${data.deals.length} active deals` },
-    { label: "Sales pipeline", view: "pipeline", icon: TrendingUp, sub: "Forecast & funnel" },
+    { label: data.profile.dealPlural || "Deals", view: "deals", icon: Handshake, sub: `${data.deals.length} active records` },
+    { label: data.organization.slug === "homigo" ? "Placement pipeline" : "Sales pipeline", view: "pipeline", icon: TrendingUp, sub: data.organization.slug === "homigo" ? "Client requirements to confirmed placement" : "Forecast & funnel" },
     { label: "Calendar", view: "calendar", icon: CalendarDays, sub: "Schedule & closes" },
-    { label: "Quotations", view: "quotations", icon: FileText, sub: `${data.quotations.length} proposals` },
+    { label: data.organization.slug === "homigo" ? "Service Agreements" : "Quotations", view: "quotations", icon: FileText, sub: `${data.quotations.length} records` },
     { label: "Payments", view: "payments", icon: Wallet, sub: "Collections & dues" },
     { label: "Reports", view: "reports", icon: BarChart3, sub: "Insights & performance" },
     { label: "Settings", view: "settings", icon: Settings2, sub: "Workspace configuration" },
@@ -999,7 +1000,7 @@ export function MoreView({ data, onNavigate, onToast }: { data: WorkspaceData; o
           return <button key={module.label} className="more-card" onClick={() => onToast(`${module.label} module opened`)}><span className="summary-icon lilac"><Icon size={17} /></span><div><strong>{module.label}</strong><small>{data.organization.industry} workflow</small></div><ChevronRight size={15} /></button>;
         })}
       </div></section>
-      <Card><div className="more-footer"><div><strong>The Adventure Pinnacle CRM</strong><small>One simple system to run your business · v1.0</small></div><span className="badge badge-gray">{data.organization.name}</span></div></Card>
+      <Card><div className="more-footer"><div><strong>{data.organization.name} Agency CRM</strong><small>Clients · Maid directory · Placements · Schedules</small></div><span className="badge badge-gray">{data.organization.name}</span></div></Card>
     </div>
   );
 }
