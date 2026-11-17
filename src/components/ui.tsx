@@ -3,11 +3,14 @@
 import { Check, ChevronDown, Download, Search, X } from "lucide-react";
 import type { ReactNode } from "react";
 
-export function money(value: number, compact = true) {
-  if (compact && value >= 10_000_000) return `₹${(value / 10_000_000).toFixed(value % 10_000_000 ? 1 : 0)}Cr`;
-  if (compact && value >= 100_000) return `₹${(value / 100_000).toFixed(value % 100_000 ? 1 : 0)}L`;
-  if (compact && value >= 1000) return `₹${Math.round(value / 1000)}K`;
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(value);
+export function money(value: number, _compact = false) {
+  // Financial amounts must remain exact throughout the CRM. Compact rounding
+  // (for example ₹1,900 -> ₹2K) is misleading on invoices, payments and totals.
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(value) ? value : 0);
 }
 
 export function formatDate(value: string | null, withTime = false) {
