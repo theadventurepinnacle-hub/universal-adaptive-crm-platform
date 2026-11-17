@@ -1,10 +1,10 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { ArrowRight, Compass, LockKeyhole, Mountain, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, ClipboardList, Home, LockKeyhole, Users, ShieldCheck, Sparkles } from "lucide-react";
 
 function Brand() {
-  return <div className="brand"><span className="brand-mark"><Mountain size={17} strokeWidth={2.2} /></span><span className="brand-text">HOMIGO</span></div>;
+  return <div className="brand"><span className="brand-mark"><Home size={17} strokeWidth={2.2} /></span><span className="brand-text">HOMIGO</span></div>;
 }
 
 export default function LoginScreen() {
@@ -41,8 +41,8 @@ export default function LoginScreen() {
           <h1>Every client.<br />Every maid.<br />One clear picture.</h1>
           <p>Manage client requests, maid profiles, availability, placements, schedules and payments in one private workspace.</p>
           <div className="login-points">
-            <div className="login-point"><span><Compass size={13} /></span><strong>Service requests</strong><small>Capture every client requirement</small></div>
-            <div className="login-point"><span><Mountain size={13} /></span><strong>Maid directory</strong><small>Track skills and availability</small></div>
+            <div className="login-point"><span><ClipboardList size={13} /></span><strong>Service requests</strong><small>Capture every client requirement</small></div>
+            <div className="login-point"><span><Users size={13} /></span><strong>Maid directory</strong><small>Track skills and availability</small></div>
             <div className="login-point"><span><ShieldCheck size={13} /></span><strong>Placement tracking</strong><small>From enquiry to placement</small></div>
           </div>
         </div>
