@@ -231,6 +231,56 @@ export function DealModal({ data, onClose, onSave }: {
   );
 }
 
+export function ManualInvoiceModal({ data, onClose, onSave }: {
+  data: WorkspaceData;
+  onClose: () => void;
+  onSave: (payload: Record<string, unknown>) => Promise<void>;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [dueDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 7);
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  });
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaving(true);
+    const values = Object.fromEntries(new FormData(event.currentTarget).entries());
+    await onSave({
+      action: "createManualInvoice",
+      customerId: Number(values.customerId),
+      description: String(values.description || ""),
+      totalAmount: Number(values.totalAmount || 0),
+      paidAmount: Number(values.paidAmount || 0),
+      dueAt: String(values.dueAt || ""),
+    });
+    setSaving(false);
+  };
+  return (
+    <Modal
+      title="Create manual invoice"
+      subtitle="Create an invoice for an existing HOMIGO client. Any advance received is recorded against the invoice."
+      onClose={onClose}
+      wide
+      footer={<><button className="btn btn-secondary" type="button" onClick={onClose}>Cancel</button><button className="btn btn-primary" type="submit" form="manual-invoice-form" disabled={saving}>{saving ? <span className="spinner" /> : <Plus size={15} />} Create invoice</button></>}
+    >
+      <form id="manual-invoice-form" onSubmit={submit} className="form-grid">
+        <Field label="Client" required>
+          <select name="customerId" required defaultValue="">
+            <option value="">Select client</option>
+            {data.customers.map((client) => <option key={client.id} value={client.id}>{client.name} · {client.phone}</option>)}
+          </select>
+        </Field>
+        <Field label="Invoice description" required><input name="description" required placeholder="e.g. Monthly full-time maid service" /></Field>
+        <Field label="Invoice amount (₹)" required><input name="totalAmount" type="number" min="1" step="1" required placeholder="15000" /></Field>
+        <Field label="Advance received (₹)"><input name="paidAmount" type="number" min="0" step="1" defaultValue="0" placeholder="0" /></Field>
+        <Field label="Payment due date" required><input name="dueAt" type="date" required defaultValue={dueDate} /></Field>
+        <div className="field full"><span className="field-label">Invoice note</span><small className="muted-note">The invoice reference is generated automatically. The unpaid balance will appear in Payments &amp; Dues, where you can record the remaining payment later.</small></div>
+      </form>
+    </Modal>
+  );
+}
+
 export function ConfirmDialog({ title, detail, confirmLabel, onCancel, onConfirm }: {
   title: string;
   detail: string;
