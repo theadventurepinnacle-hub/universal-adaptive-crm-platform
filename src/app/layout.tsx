@@ -7,8 +7,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "The Adventure Pinnacle CRM",
-  description: "A private workspace for The Adventure Pinnacle enquiries, travellers, trips and bookings.",
+  title: "HOMIGO Agency CRM",
+  description: "A private workspace for HOMIGO clients, maid profiles, service requests and placements.",
 };
 
 export const viewport: Viewport = {
