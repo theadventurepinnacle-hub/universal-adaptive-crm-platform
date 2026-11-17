@@ -69,7 +69,29 @@ export async function getWorkspaceData(slug: IndustryKey = "adventure"): Promise
       trend: 0,
     }));
 
-    const mappedCustomers = customerRows.map((customer) => {
+    const maidRows = slug === "homigo"
+      ? customerRows.filter((customer) => customer.customData?.record_type === "staff")
+      : [];
+    const clientRows = slug === "homigo"
+      ? customerRows.filter((customer) => customer.customData?.record_type !== "staff")
+      : customerRows;
+    const mappedMaids = maidRows.map((maid) => {
+      const meta = maid.customData || {};
+      return {
+        id: maid.id,
+        name: maid.name,
+        phone: maid.phone,
+        age: meta.age == null ? "" : String(meta.age),
+        location: meta.location == null ? "" : String(meta.location),
+        serviceTypes: String(meta.service_types || meta.service_type || "Not specified"),
+        availability: String(meta.availability || "Not confirmed"),
+        workNotes: String(meta.work_notes || ""),
+        verificationNote: String(meta.verification_note || ""),
+        source: String(meta.source || "Manual entry"),
+        avatar: maid.name.split(" ").map((part) => part[0]).join("").slice(0, 2),
+      };
+    });
+    const mappedCustomers = clientRows.map((customer) => {
       const owner = customer.ownerId ? userById.get(customer.ownerId) : null;
       return {
         id: customer.id,
@@ -155,6 +177,7 @@ export async function getWorkspaceData(slug: IndustryKey = "adventure"): Promise
       stages: stageRows.map((stage) => ({ id: stage.id, name: stage.name, color: stage.color, position: stage.position, isWon: stage.isWon, isLost: stage.isLost })),
       leads: mappedLeads,
       customers: mappedCustomers,
+      maids: mappedMaids,
       deals: mappedDeals,
       companies,
       tasks: taskRows.map((task) => {
@@ -354,7 +377,7 @@ export async function createContact(input: CreateContactInput) {
     company: input.company.trim() || null,
     segment: input.segment || "Active",
     totalValue: input.totalValue,
-    customData: {},
+    customData: (input.customData || {}) as Record<string, string>,
   }).returning();
   await db.insert(activities).values({
     organizationId: organization.id, actorId: owner?.id ?? null, customerId: contact.id,
