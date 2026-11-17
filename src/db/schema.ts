@@ -250,6 +250,32 @@ export const deals = pgTable(
   ],
 );
 
+export const placementDetails = pgTable(
+  "placement_details",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: integer("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    dealId: integer("deal_id").notNull().references(() => deals.id, { onDelete: "cascade" }),
+    maidId: integer("maid_id").references(() => customers.id, { onDelete: "set null" }),
+    clientId: integer("client_id").references(() => customers.id, { onDelete: "set null" }),
+    serviceRequestId: integer("service_request_id").references(() => leads.id, { onDelete: "set null" }),
+    startAt: timestamp("start_at", { withTimezone: true }),
+    endAt: timestamp("end_at", { withTimezone: true }),
+    schedule: text("schedule").notNull().default("To be confirmed"),
+    workerPay: integer("worker_pay").notNull().default(0),
+    clientFee: integer("client_fee").notNull().default(0),
+    status: text("status").notNull().default("Scheduled"),
+    notes: text("notes").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("placement_details_deal_unique").on(table.dealId),
+    index("placement_details_org_idx").on(table.organizationId),
+    index("placement_details_maid_idx").on(table.maidId),
+    index("placement_details_client_idx").on(table.clientId),
+  ],
+);
+
 export const customFields = pgTable(
   "custom_fields",
   {
