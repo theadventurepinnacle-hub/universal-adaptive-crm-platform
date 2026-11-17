@@ -271,4 +271,11 @@ export type CreateDealInput = {
   priority: string;
   probability: number;
   source: string;
+  maidId?: number | null;
+  startAt?: string;
+  schedule?: string;
+  workerPay?: number;
+  clientFee?: number;
+  serviceRequestId?: number | null;
+  placementNotes?: string;
 };
