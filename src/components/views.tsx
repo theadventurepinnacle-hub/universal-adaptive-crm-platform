@@ -101,7 +101,7 @@ export function ContactsView({ data, onAdd, onView, onEdit, onDelete }: {
           ))}
         </div>
         {!filtered.length && <Empty title="No contacts found" detail="Try a different search or status filter." />}
-        <div className="table-foot"><span>Showing {filtered.length} of {data.customers.length} contacts</span><span>The Adventure Pinnacle CRM</span></div>
+        <div className="table-foot"><span>Showing {filtered.length} of {data.customers.length} contacts</span><span>{data.organization.name} Agency CRM</span></div>
       </Card>
     </div>
   );
@@ -332,7 +332,7 @@ export function DealsView({ data, onAdd, onOpen, onStage }: {
       <PageHead
         eyebrow={data.organization.slug === "homigo" ? "PLACEMENT MANAGEMENT" : "DEAL MANAGEMENT"}
         title={data.profile.dealPlural || "Trip Bookings"}
-        subtitle={data.organization.slug === "homigo" ? "Manage confirmed cleaning and home-service bookings" : "Drag deals between stages, or update the stage from each card"}
+        subtitle={data.organization.slug === "homigo" ? "Track which maid is assigned to each client, plus start dates, salary and placement fee" : "Drag deals between stages, or update the stage from each card"}
         actions={<>
           <div className="view-switch"><button className={mode === "board" ? "active" : ""} onClick={() => setMode("board")}><LayoutGrid size={14} /> Board</button><button className={mode === "list" ? "active" : ""} onClick={() => setMode("list")}><List size={14} /> List</button></div>
           <button className="btn btn-primary" onClick={onAdd}><Plus size={16} /> {data.organization.slug === "homigo" ? "New service booking" : "New deal"}</button>
@@ -801,11 +801,11 @@ export function SettingsView({ data, onToast }: {
               </div>
             </Card>
             <Card>
-              <CardHead title="Travel & tourism workspace" subtitle="Configured for trip enquiries, traveller relationships and bookings" />
+              <CardHead title={data.organization.slug === "homigo" ? "HOMIGO agency workspace" : "Travel & tourism workspace"} subtitle={data.organization.slug === "homigo" ? "Configured for client requirements, maid profiles, schedules and placements" : "Configured for trip enquiries, traveller relationships and bookings"} />
               <div className="industry-switch">
                 <div className="industry-switch-item active">
                   <span><Building2 size={16} /></span>
-                  <div><strong>The Adventure Pinnacle</strong><small>Trips · departures · itineraries · payments</small></div>
+                  <div><strong>{data.organization.name}</strong><small>{data.organization.slug === "homigo" ? "Clients · maid directory · placements · schedules" : "Trips · departures · itineraries · payments"}</small></div>
                   <Check size={15} />
                 </div>
               </div>
@@ -821,9 +821,9 @@ export function SettingsView({ data, onToast }: {
               </div>
             </Card>
             <Card>
-              <CardHead title="Custom fields" subtitle={`${data.profile.leadLabel} fields for ${data.organization.industry.toLowerCase()}`} actions={<button className="btn btn-secondary btn-sm" onClick={() => onToast("Custom field builder opened")}><Plus size={13} /> Field</button>} />
+              <CardHead title={data.organization.slug === "homigo" ? "Service request fields" : "Custom fields"} subtitle={`${data.profile.leadLabel} fields for ${data.organization.industry.toLowerCase()}`} actions={<button className="btn btn-secondary btn-sm" onClick={() => onToast("Custom field builder opened")}><Plus size={13} /> Field</button>} />
               <div className="custom-fields">
-                {data.profile.customFields.map((field) => <div key={field.key} className="custom-field"><div><strong>{field.label}</strong><small>Used on {data.profile.leadLabel.toLowerCase()} and contact records</small></div><span className="badge badge-gray">Text</span><Pencil size={13} className="row-edit" /></div>)}
+                {(data.profile.leadFields || data.profile.customFields).map((field) => <div key={field.key} className="custom-field"><div><strong>{field.label}</strong><small>Used on {data.profile.leadLabel.toLowerCase()} and contact records</small></div><span className="badge badge-gray">Text</span><Pencil size={13} className="row-edit" /></div>)}
               </div>
             </Card>
           </>}
