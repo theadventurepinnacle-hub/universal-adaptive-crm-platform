@@ -3,7 +3,7 @@
 import { OwnerDashboard } from "@/components/dashboard";
 import {
   AssistantPanel, CommandPalette, CompanyDrawer, ConfirmDialog, ContactModal, CustomerDrawer, DealModal,
-  LeadDrawer, NotificationsPanel, QuickAddModal,
+  LeadDrawer, ManualInvoiceModal, NotificationsPanel, QuickAddModal,
 } from "@/components/overlays";
 import { Avatar } from "@/components/ui";
 import { MaidDirectoryView } from "@/components/maid-directory";
@@ -49,7 +49,9 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
   const [quickAdd, setQuickAdd] = useState<"lead" | "task" | null>(null);
   const [contactModal, setContactModal] = useState<{ contact: CustomerView | null } | null>(null);
   const [dealModal, setDealModal] = useState(false);
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CustomerView | null>(null);
+  const [recordDeleteTarget, setRecordDeleteTarget] = useState<{ type: "lead" | "deal"; id: number; name: string } | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
   const [selectedContactId, setSelectedContactId] = useState<number | null>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
@@ -114,6 +116,10 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
     void mutate({ action: "moveDeal", id: deal.id, stageId }, `${deal.title} moved to ${stage?.name ?? "new stage"}`);
   };
   const collect = (id: number) => { void mutate({ action: "collectPayment", id }, "Payment marked as collected"); };
+  const saveManualInvoice = async (payload: Record<string, unknown>) => {
+    const success = await mutate(payload, "Manual invoice created");
+    if (success) setInvoiceModalOpen(false);
+  };
   const saveContact = async (payload: Record<string, unknown>) => {
     const success = await mutate(payload, payload.action === "createContact" ? "Client added" : "Client updated");
     if (success) setContactModal(null);
@@ -257,8 +263,8 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
           {view === "contacts" && <ContactsView data={data} onAdd={() => setContactModal({ contact: null })} onView={(contact) => setSelectedContactId(contact.id)} onEdit={(contact) => setContactModal({ contact })} onDelete={setDeleteTarget} />}
           {view === "maids" && <MaidDirectoryView data={data} onSave={saveMaid} />}
           {view === "companies" && <CompaniesView data={data} onView={(company) => setSelectedCompanyId(company.id)} onToast={showToast} />}
-          {view === "leads" && <LeadsView data={data} onAdd={() => setQuickAdd("lead")} onView={(lead) => setSelectedLeadId(lead.id)} onAssign={assignLead} onStage={stageLead} onAction={quickAction} />}
-          {view === "deals" && <DealsView data={data} onAdd={() => setDealModal(true)} onOpen={(deal) => { if (deal.contactId) setSelectedContactId(deal.contactId); else showToast(`${deal.title} · ${deal.stage}`); }} onStage={(deal, stageId) => moveDeal(deal, stageId)} />}
+          {view === "leads" && <LeadsView data={data} onAdd={() => setQuickAdd("lead")} onView={(lead) => setSelectedLeadId(lead.id)} onAssign={assignLead} onStage={stageLead} onAction={quickAction} onDelete={(lead) => setRecordDeleteTarget({ type: "lead", id: lead.id, name: lead.name })} />}
+          {view === "deals" && <DealsView data={data} onAdd={() => setDealModal(true)} onOpen={(deal) => { if (deal.contactId) setSelectedContactId(deal.contactId); else showToast(`${deal.title} · ${deal.stage}`); }} onStage={(deal, stageId) => moveDeal(deal, stageId)} onDelete={(deal) => setRecordDeleteTarget({ type: "deal", id: deal.id, name: deal.title })} />}
           {view === "pipeline" && <PipelineView data={data} onOpen={(deal) => { if (deal.contactId) setSelectedContactId(deal.contactId); }} onSettings={() => navigate("settings")} />}
           {view === "tasks" && <TasksView data={data} onAdd={() => setQuickAdd("task")} onComplete={completeTask} />}
           {view === "calendar" && (data.organization.slug === "homigo"
@@ -266,7 +272,7 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
             : <CalendarView data={data} onAdd={() => setQuickAdd("task")} onComplete={completeTask} />)}
           {view === "reports" && <ReportsView data={data} onToast={showToast} />}
           {view === "quotations" && <QuotationsView data={data} onToast={showToast} />}
-          {view === "payments" && <PaymentsView data={data} onCollect={collect} />}
+          {view === "payments" && <PaymentsView data={data} onCollect={collect} onAddClient={() => setContactModal({ contact: null })} onNewInvoice={() => setInvoiceModalOpen(true)} />}
           {view === "settings" && <SettingsView data={data} onToast={showToast} />}
           {view === "more" && <MoreView data={data} onNavigate={navigate} onToast={showToast} />}
         </main>
@@ -282,6 +288,7 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
       {quickAdd && <QuickAddModal data={data} initialType={quickAdd} onClose={() => setQuickAdd(null)} onSubmit={submitQuickAdd} />}
       {contactModal && <ContactModal data={data} contact={contactModal.contact} onClose={() => setContactModal(null)} onSave={saveContact} />}
       {dealModal && <DealModal data={data} onClose={() => setDealModal(false)} onSave={saveDeal} />}
+      {invoiceModalOpen && <ManualInvoiceModal data={data} onClose={() => setInvoiceModalOpen(false)} onSave={saveManualInvoice} />}
       {deleteTarget && (
         <ConfirmDialog
           title={`Delete ${deleteTarget.name}?`}
@@ -289,6 +296,22 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
           confirmLabel="Delete contact"
           onCancel={() => setDeleteTarget(null)}
           onConfirm={() => { const target = deleteTarget; setDeleteTarget(null); setSelectedContactId(null); void mutate({ action: "deleteContact", id: target.id }, `${target.name} deleted`); }}
+        />
+      )}
+      {recordDeleteTarget && (
+        <ConfirmDialog
+          title={recordDeleteTarget.type === "lead" ? "Delete this service request?" : "Delete this placement?"}
+          detail={recordDeleteTarget.type === "lead"
+            ? `“${recordDeleteTarget.name}” and its linked follow-up tasks will be removed. The client/maid directory records will not be deleted.`
+            : `“${recordDeleteTarget.name}” and its linked placement schedule/attendance records will be removed. Client and maid profiles will remain.`}
+          confirmLabel={recordDeleteTarget.type === "lead" ? "Delete request" : "Delete placement"}
+          onCancel={() => setRecordDeleteTarget(null)}
+          onConfirm={() => {
+            const target = recordDeleteTarget;
+            setRecordDeleteTarget(null);
+            void mutate({ action: target.type === "lead" ? "deleteLead" : "deleteDeal", id: target.id },
+              target.type === "lead" ? "Service request deleted" : "Placement deleted");
+          }}
         />
       )}
       {selectedLead && <LeadDrawer data={data} lead={selectedLead} onClose={() => setSelectedLeadId(null)} onAction={quickAction} onAssign={assignLead} onStage={stageLead} />}
