@@ -232,6 +232,9 @@ export async function getWorkspaceData(slug: IndustryKey = "adventure"): Promise
         id: payment.id, reference: payment.reference, customer: payment.customerId ? customerById.get(payment.customerId)?.name ?? "Customer" : "Customer",
         description: payment.description, totalAmount: payment.totalAmount, paidAmount: payment.paidAmount,
         dueAt: payment.dueAt.toISOString(), status: payment.status,
+        customerPhone: payment.customerId ? customerById.get(payment.customerId)?.phone ?? "" : "",
+        customerEmail: payment.customerId ? customerById.get(payment.customerId)?.email ?? "" : "",
+        customerAddress: payment.customerId ? customerById.get(payment.customerId)?.customData?.address ?? "" : "",
       })),
       quotations: quoteRows.map((quote) => ({
         id: quote.id, quoteNumber: quote.quoteNumber,
@@ -459,32 +462,58 @@ export async function collectPayment(slug: IndustryKey, paymentId: number) {
 }
 
 export async function createManualInvoice(slug: IndustryKey, input: {
-  customerId: number;
+  customerId?: number;
+  newCustomer?: { name: string; phone: string; email?: string; address?: string };
   description: string;
   totalAmount: number;
   paidAmount: number;
   dueAt: string;
 }) {
   const organization = await resolveOrganization(slug);
-  const [customer] = await db.select().from(customers).where(
-    and(eq(customers.id, input.customerId), eq(customers.organizationId, organization.id)),
-  ).limit(1);
-  if (!customer || (slug === "homigo" && customer.customData?.record_type === "staff")) {
-    throw new Error("Select a valid client for this invoice");
-  }
   const description = input.description.trim();
   const totalAmount = Math.round(input.totalAmount);
   const paidAmount = Math.round(input.paidAmount);
   const dueAt = new Date(input.dueAt);
   if (!description) throw new Error("Invoice description is required");
-  if (!Number.isFinite(totalAmount) || totalAmount <= 0) throw new Error("Invoice amount must be greater than zero");
-  if (!Number.isFinite(paidAmount) || paidAmount < 0 || paidAmount > totalAmount) throw new Error("Advance received must be between zero and the invoice total");
+  if (!Number.isSafeInteger(totalAmount) || totalAmount <= 0) throw new Error("Invoice amount must be greater than zero");
+  if (!Number.isSafeInteger(paidAmount) || paidAmount < 0 || paidAmount > totalAmount) throw new Error("Advance received must be between zero and the invoice total");
   if (Number.isNaN(dueAt.getTime())) throw new Error("Choose a valid due date");
   const [owner] = await db.select().from(users).where(
     and(eq(users.organizationId, organization.id), eq(users.role, "owner")),
   ).limit(1);
+
+  let customer: typeof customers.$inferSelect | undefined;
+  if (input.customerId) {
+    const [existing] = await db.select().from(customers).where(
+      and(eq(customers.id, input.customerId), eq(customers.organizationId, organization.id)),
+    ).limit(1);
+    if (!existing || (slug === "homigo" && existing.customData?.record_type === "staff")) {
+      throw new Error("Select a valid client for this invoice");
+    }
+    customer = existing;
+  } else {
+    const name = input.newCustomer?.name?.trim() ?? "";
+    const phone = input.newCustomer?.phone?.trim() ?? "";
+    if (!name || !phone) throw new Error("Enter the new client's name and phone number");
+    const [created] = await db.insert(customers).values({
+      organizationId: organization.id,
+      ownerId: owner?.id ?? null,
+      name,
+      phone,
+      email: input.newCustomer?.email?.trim() || null,
+      company: null,
+      segment: "Active",
+      totalValue: 0,
+      customData: {
+        ...(input.newCustomer?.address?.trim() ? { address: input.newCustomer.address.trim() } : {}),
+        source: "Manual invoice",
+      },
+    }).returning();
+    customer = created;
+  }
+
   const reference = `HOM-INV-${Date.now()}`;
-  const status = paidAmount >= totalAmount ? "Paid" : "Pending";
+  const status = paidAmount >= totalAmount ? "Paid" : paidAmount > 0 ? "Partial" : "Pending";
   const [invoice] = await db.insert(payments).values({
     organizationId: organization.id,
     customerId: customer.id,
@@ -496,13 +525,50 @@ export async function createManualInvoice(slug: IndustryKey, input: {
     dueAt,
     status,
   }).returning();
+
+  await db.update(customers).set({
+    totalValue: customer.totalValue + totalAmount,
+    lastContactAt: new Date(),
+  }).where(and(eq(customers.id, customer.id), eq(customers.organizationId, organization.id)));
+
   await db.insert(activities).values({
     organizationId: organization.id,
     actorId: owner?.id ?? null,
     customerId: customer.id,
     type: "payment",
-    title: "Manual invoice created",
-    detail: `${invoice.reference} · ₹${totalAmount} for ${customer.name}`,
+    title: "Invoice created",
+    detail: `${invoice.reference} · ₹${totalAmount} billed to ${customer.name}${paidAmount ? ` · ₹${paidAmount} received` : ""}`,
+  });
+  return getWorkspaceData(slug);
+}
+
+export async function recordPayment(slug: IndustryKey, input: {
+  paymentId: number;
+  amount: number;
+  method?: string;
+  note?: string;
+}) {
+  const organization = await resolveOrganization(slug);
+  const [invoice] = await db.select().from(payments).where(
+    and(eq(payments.id, input.paymentId), eq(payments.organizationId, organization.id)),
+  ).limit(1);
+  if (!invoice) throw new Error("Invoice not found");
+  const amount = Math.round(input.amount);
+  const balance = invoice.totalAmount - invoice.paidAmount;
+  if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error("Enter a payment amount greater than zero");
+  if (amount > balance) throw new Error("Payment cannot be greater than the outstanding balance");
+  const paidAmount = invoice.paidAmount + amount;
+  const status = paidAmount >= invoice.totalAmount ? "Paid" : "Partial";
+  await db.update(payments).set({ paidAmount, status }).where(
+    and(eq(payments.id, invoice.id), eq(payments.organizationId, organization.id)),
+  );
+  await db.insert(activities).values({
+    organizationId: organization.id,
+    actorId: invoice.assignedToId,
+    customerId: invoice.customerId,
+    type: "payment",
+    title: "Payment recorded",
+    detail: `₹${amount} received for ${invoice.reference} via ${input.method?.trim() || "Cash"} · ${status} · balance ₹${invoice.totalAmount - paidAmount}${input.note?.trim() ? ` · ${input.note.trim()}` : ""}`,
   });
   return getWorkspaceData(slug);
 }
