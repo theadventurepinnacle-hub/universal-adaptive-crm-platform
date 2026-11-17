@@ -511,6 +511,7 @@ export async function createManualInvoice(slug: IndustryKey, input: {
     }).returning();
     customer = created;
   }
+  if (!customer) throw new Error("Client could not be created or selected");
 
   const reference = `HOM-INV-${Date.now()}`;
   const status = paidAmount >= totalAmount ? "Paid" : paidAmount > 0 ? "Partial" : "Pending";
