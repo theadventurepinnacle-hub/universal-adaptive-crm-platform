@@ -1061,3 +1061,49 @@ a { color: inherit; text-decoration: none; }
 .workspace-menu > button > span:nth-child(2) { display: grid; min-width: 0; flex: 1; gap: 2px; }
 .workspace-menu > button strong { color: var(--text); font-size: 10px; font-weight: 650; }
 .workspace-menu > button small { color: var(--muted-2); font-size: 8px; }
+
+.new-invoice-menu { position: relative; }
+.invoice-new-menu { top: calc(100% + 7px); right: 0; left: auto; min-width: 205px; z-index: 40; }
+.invoice-new-menu button { display: flex; align-items: center; gap: 9px; white-space: nowrap; }
+.payment-row { align-items: center; }
+.payment-row-actions { display: flex; align-items: center; gap: 6px; }
+.payment-entry-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.payment-entry-summary span { display: grid; gap: 4px; }
+.payment-entry-summary small { color: var(--muted); font-size: 11px; }
+.payment-entry-summary strong { font-size: 15px; }
+.invoice-print-sheet { background: #fff; color: #18201d; border-radius: 12px; padding: 30px; max-width: 760px; margin: 0 auto; }
+.invoice-print-header { display:flex; justify-content:space-between; gap:20px; padding-bottom:24px; border-bottom:2px solid #d9dfd9; }
+.invoice-print-header > div:first-child { display:flex; align-items:center; gap:12px; }
+.invoice-brand-mark { display:grid; place-items:center; width:42px; height:42px; border-radius:12px; background:#a3e635; color:#15200c; font-weight:800; font-size:20px; }
+.invoice-print-header h1 { font-size:21px; margin:0; color:#172019; }
+.invoice-print-header p,.invoice-heading span { color:#647064; margin:4px 0 0; font-size:12px; }
+.invoice-heading { display:grid; justify-items:end; gap:4px; }
+.invoice-heading small,.invoice-parties small { color:#738073; font-size:10px; letter-spacing:1px; font-weight:700; }
+.invoice-heading strong { font-size:15px; }
+.invoice-parties { display:grid; grid-template-columns:1fr 1fr; gap:20px; padding:24px 0; }
+.invoice-parties > div { display:grid; align-content:start; gap:5px; }
+.invoice-parties strong { font-size:14px; }
+.invoice-parties span { font-size:12px; color:#59645b; }
+.invoice-status { margin-top:5px; font-weight:700; }
+.invoice-lines { width:100%; border-collapse:collapse; margin:10px 0 20px; }
+.invoice-lines th,.invoice-lines td { padding:12px; border-bottom:1px solid #e3e8e2; text-align:left; font-size:13px; }
+.invoice-lines th:last-child,.invoice-lines td:last-child { text-align:right; }
+.invoice-totals { width:min(100%,330px); margin-left:auto; display:grid; gap:10px; }
+.invoice-totals div { display:flex; justify-content:space-between; gap:20px; font-size:13px; }
+.invoice-totals .invoice-balance { border-top:1px solid #d9dfd9; padding-top:12px; font-size:16px; font-weight:800; }
+.invoice-print-footer { display:grid; gap:5px; border-top:1px solid #d9dfd9; margin-top:32px; padding-top:18px; font-size:12px; }
+.invoice-print-footer span { color:#738073; }
+@media print {
+  body * { visibility:hidden !important; }
+  .invoice-print-sheet,.invoice-print-sheet * { visibility:visible !important; }
+  .invoice-print-sheet { position:fixed; inset:0; width:100%; max-width:none; border-radius:0; padding:18mm; box-shadow:none; }
+  .overlay,.modal,.modal-body { position:static !important; overflow:visible !important; background:#fff !important; border:0 !important; box-shadow:none !important; }
+  .modal-head,.modal-foot,.overlay-scrim { display:none !important; }
+}
+@media (max-width: 700px) {
+  .payment-row { flex-wrap:wrap; }
+  .payment-main { min-width:calc(100% - 42px); }
+  .payment-row-actions { width:100%; justify-content:flex-end; }
+  .invoice-print-sheet { padding:16px; }
+  .payment-entry-summary { grid-template-columns:1fr; }
+}
