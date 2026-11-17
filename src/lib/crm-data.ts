@@ -365,6 +365,88 @@ export async function collectPayment(slug: IndustryKey, paymentId: number) {
   return getWorkspaceData(slug);
 }
 
+export async function createMaid(input: {
+  organizationSlug: IndustryKey;
+  name: string;
+  phone: string;
+  age?: string;
+  location?: string;
+  serviceTypes?: string;
+  availability?: string;
+  workNotes?: string;
+}) {
+  if (input.organizationSlug !== "homigo") throw new Error("Maid profiles are available in the HOMIGO workspace only");
+  const organization = await resolveOrganization(input.organizationSlug);
+  const [owner] = await db.select().from(users).where(and(eq(users.organizationId, organization.id), eq(users.role, "owner"))).limit(1);
+  const customData: Record<string, string> = {
+    record_type: "staff",
+    age: input.age?.trim() || "",
+    location: input.location?.trim() || "",
+    service_types: input.serviceTypes?.trim() || "",
+    availability: input.availability?.trim() || "Not confirmed",
+    work_notes: input.workNotes?.trim() || "",
+    source: "Manual entry",
+    import_status: "Not imported",
+    verification_note: "Not verified",
+  };
+  const [maid] = await db.insert(customers).values({
+    organizationId: organization.id,
+    ownerId: owner?.id ?? null,
+    name: input.name.trim(),
+    phone: input.phone.trim(),
+    segment: "Staff",
+    totalValue: 0,
+    customData,
+  }).returning();
+  await db.insert(activities).values({
+    organizationId: organization.id,
+    actorId: owner?.id ?? null,
+    customerId: maid.id,
+    type: "contact",
+    title: "Maid profile created",
+    detail: `${maid.name} added to HOMIGO maid directory`,
+  });
+  return getWorkspaceData(input.organizationSlug);
+}
+
+export async function updateMaid(slug: IndustryKey, maidId: number, patch: {
+  name?: string;
+  phone?: string;
+  age?: string;
+  location?: string;
+  serviceTypes?: string;
+  availability?: string;
+  workNotes?: string;
+}) {
+  if (slug !== "homigo") throw new Error("Maid profiles are available in the HOMIGO workspace only");
+  const organization = await resolveOrganization(slug);
+  const [existing] = await db.select().from(customers).where(
+    and(eq(customers.id, maidId), eq(customers.organizationId, organization.id)),
+  ).limit(1);
+  if (!existing || existing.customData?.record_type !== "staff") throw new Error("Maid profile not found");
+  const customData = { ...(existing.customData || {}) } as Record<string, string>;
+  if (patch.age !== undefined) customData.age = patch.age;
+  if (patch.location !== undefined) customData.location = patch.location;
+  if (patch.serviceTypes !== undefined) customData.service_types = patch.serviceTypes;
+  if (patch.availability !== undefined) customData.availability = patch.availability;
+  if (patch.workNotes !== undefined) customData.work_notes = patch.workNotes;
+  const [updated] = await db.update(customers).set({
+    ...(patch.name ? { name: patch.name.trim() } : {}),
+    ...(patch.phone ? { phone: patch.phone.trim() } : {}),
+    customData,
+    lastContactAt: new Date(),
+  }).where(and(eq(customers.id, maidId), eq(customers.organizationId, organization.id))).returning();
+  await db.insert(activities).values({
+    organizationId: organization.id,
+    actorId: existing.ownerId,
+    customerId: updated.id,
+    type: "contact",
+    title: "Maid profile updated",
+    detail: `${updated.name}'s HOMIGO profile was updated`,
+  });
+  return getWorkspaceData(slug);
+}
+
 export async function createContact(input: CreateContactInput) {
   const organization = await resolveOrganization(input.organizationSlug);
   const [owner] = await db.select().from(users).where(and(eq(users.organizationId, organization.id), ne(users.role, "owner"))).orderBy(asc(users.id)).limit(1);
