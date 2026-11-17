@@ -358,7 +358,7 @@ export function ManualInvoiceModal({ data, onClose, onSave }: {
   onSave: (payload: Record<string, unknown>) => Promise<void>;
 }) {
   const [saving, setSaving] = useState(false);
-  const [clientMode, setClientMode] = useState<"existing" | "new">(data.customers.length ? "existing" : "new");
+  const [clientMode, setClientMode] = useState<"existing" | "new>("new");
   const [dueDate] = useState(() => {
     const date = new Date();
     date.setDate(date.getDate() + 7);
@@ -466,7 +466,7 @@ export function RecordPaymentModal({ data, initialPaymentId, onClose, onSave }: 
           <span><small>Already received</small><strong>₹{selected.paidAmount.toLocaleString("en-IN")}</strong></span>
           <span><small>Balance</small><strong>₹{(selected.totalAmount-selected.paidAmount).toLocaleString("en-IN")}</strong></span>
         </div>}
-        <Field label="Amount received now (₹)" required><input name="amount" type="number" min="1" max={selected ? selected.totalAmount-selected.paidAmount : undefined} step="1" required defaultValue={selected ? selected.totalAmount-selected.paidAmount : ""} /></Field>
+        <Field label="Amount received now (₹)" required><input name="amount" type="number" min="1" max={selected ? selected.totalAmount-selected.paidAmount : undefined} step="1" required placeholder={selected ? String(selected.totalAmount-selected.paidAmount) : "Enter amount"} /></Field>
         <Field label="Payment method"><select name="method" defaultValue="Cash"><option>Cash</option><option>UPI</option><option>Bank transfer</option><option>Card</option><option>Other</option></select></Field>
         <Field label="Payment note"><input name="note" placeholder="Optional transaction reference / note" /></Field>
       </form>
