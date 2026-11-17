@@ -37,16 +37,16 @@ export default function LoginScreen() {
       <section className="login-story">
         <Brand />
         <div className="login-copy">
-          <p className="eyebrow">YOUR TRAVEL BUSINESS, IN ONE PLACE</p>
-          <h1>Every enquiry.<br />Every trip.<br />One clear picture.</h1>
-          <p>Keep traveller relationships, trip enquiries, follow-ups, quotations and payments organised in one private workspace.</p>
+          <p className="eyebrow">YOUR HOME-STAFFING BUSINESS, ORGANIZED</p>
+          <h1>Every client.<br />Every maid.<br />One clear picture.</h1>
+          <p>Manage client requests, maid profiles, availability, placements, schedules and payments in one private workspace.</p>
           <div className="login-points">
-            <div className="login-point"><span><Compass size={13} /></span><strong>Trip enquiries</strong><small>Track every new traveller</small></div>
-            <div className="login-point"><span><Mountain size={13} /></span><strong>Departures</strong><small>Keep bookings moving</small></div>
-            <div className="login-point"><span><ShieldCheck size={13} /></span><strong>Private workspace</strong><small>Owner sign-in required</small></div>
+            <div className="login-point"><span><Compass size={13} /></span><strong>Service requests</strong><small>Capture every client requirement</small></div>
+            <div className="login-point"><span><Mountain size={13} /></span><strong>Maid directory</strong><small>Track skills and availability</small></div>
+            <div className="login-point"><span><ShieldCheck size={13} /></span><strong>Placement tracking</strong><small>From enquiry to placement</small></div>
           </div>
         </div>
-        <p className="login-foot">The Adventure Pinnacle · Private CRM workspace</p>
+        <p className="login-foot">HOMIGO · Private agency workspace</p>
       </section>
       <section className="login-form-wrap">
         <form className="login-card" onSubmit={submit}>
