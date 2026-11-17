@@ -26,8 +26,8 @@ type ViewKey = "dashboard" | "contacts" | "maids" | "companies" | "leads" | "dea
 type NavItem = { key: ViewKey; label: string; icon: LucideIcon; badge?: number };
 
 const pageTitles: Record<ViewKey, string> = {
-  dashboard: "Dashboard", contacts: "Clients", maids: "Maid Directory", companies: "Partner Accounts", leads: "Service Requests", deals: "Placements",
-  pipeline: "Placement Pipeline", tasks: "Tasks & Follow-ups", calendar: "Schedule", reports: "Reports",
+  dashboard: "Dashboard", contacts: "Clients", maids: "Staff Directory", companies: "Partner Accounts", leads: "Service Requests", deals: "Service Bookings",
+  pipeline: "Service Pipeline", tasks: "Tasks & Follow-ups", calendar: "Schedule", reports: "Reports",
   quotations: "Service Agreements", payments: "Payments & Dues", settings: "Settings", more: "More",
 };
 
@@ -39,6 +39,7 @@ function Logo({ compact = false, brandName = "HOMIGO" }: { compact?: boolean; br
 
 export default function CrmApp({ initialData }: { initialData: WorkspaceData }) {
   const [data, setData] = useState(initialData);
+  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const [view, setView] = useState<ViewKey>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileMenu, setProfileMenu] = useState<"side" | "top" | null>(null);
@@ -55,6 +56,36 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const switchWorkspace = async (slug: "adventure" | "homigo") => {
+    if (slug === data.organization.slug) { setWorkspaceMenuOpen(false); return; }
+    setBusy(true);
+    try {
+      const response = await fetch("/api/crm?industry=" + slug, { cache: "no-store" });
+      const next = await response.json() as WorkspaceData & { error?: string };
+      if (!response.ok) throw new Error(next.error || "Could not load workspace");
+      const saved = await fetch("/api/workspace", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug }),
+      });
+      if (!saved.ok) throw new Error("Could not save workspace preference");
+      setData(next);
+      setView("dashboard");
+      setSelectedLeadId(null);
+      setSelectedContactId(null);
+      setSelectedCompanyId(null);
+      setQuickAdd(null);
+      setContactModal(null);
+      setDealModal(false);
+      setWorkspaceMenuOpen(false);
+      showToast(next.organization.name + " workspace opened");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Workspace switch failed");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -144,12 +175,27 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
   const openTasks = data.tasks.filter((task) => task.status !== "completed").length;
   const unread = data.notifications.filter((notification) => !notification.isRead).length;
 
-  const navGroups: Array<{ label: string; items: NavItem[] }> = [
-    { label: "OVERVIEW", items: [{ key: "dashboard", label: "Dashboard", icon: LayoutDashboard }, { key: "contacts", label: "Clients", icon: Users }, { key: "maids", label: "Maid Directory", icon: ShieldCheck, badge: data.maids.length }, { key: "companies", label: "Partner Accounts", icon: Building2 }] },
-    { label: "SERVICE OPERATIONS", items: [{ key: "leads", label: "Service Requests", icon: Target, badge: data.leads.length }, { key: "deals", label: "Placements", icon: Handshake, badge: data.deals.length }, { key: "pipeline", label: "Placement Pipeline", icon: TrendingUp }] },
-    { label: "WORKSPACE", items: [{ key: "tasks", label: "Tasks & Follow-ups", icon: ListChecks, badge: openTasks }, { key: "calendar", label: "Attendance & Schedule", icon: CalendarDays }, { key: "reports", label: "Reports", icon: BarChart3 }] },
-    { label: "FINANCE", items: [{ key: "quotations", label: "Service Agreements", icon: FileText }, { key: "payments", label: "Payments & Dues", icon: Wallet }] },
-  ];
+  const navGroups: Array<{ label: string; items: NavItem[] }> = data.organization.slug === "homigo"
+    ? [
+        { label: "OVERVIEW", items: [
+          { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+          { key: "contacts", label: "Clients", icon: Users },
+          { key: "maids", label: "Staff Directory", icon: ShieldCheck, badge: data.maids.length },
+        ] },
+        { label: "SERVICE OPERATIONS", items: [
+          { key: "leads", label: "Service Requests", icon: Target, badge: data.leads.length },
+          { key: "deals", label: "Service Bookings", icon: Handshake, badge: data.deals.length },
+          { key: "pipeline", label: "Service Pipeline", icon: TrendingUp },
+        ] },
+        { label: "WORKSPACE", items: [{ key: "tasks", label: "Tasks & Follow-ups", icon: ListChecks, badge: openTasks }, { key: "calendar", label: "Schedule", icon: CalendarDays }, { key: "reports", label: "Reports", icon: BarChart3 }] },
+        { label: "FINANCE", items: [{ key: "quotations", label: "Quotations", icon: FileText }, { key: "payments", label: "Payments & Dues", icon: Wallet }] },
+      ]
+    : [
+        { label: "OVERVIEW", items: [{ key: "dashboard", label: "Dashboard", icon: LayoutDashboard }, { key: "contacts", label: "Travellers", icon: Users }, { key: "companies", label: "Travel Partners", icon: Building2 }] },
+        { label: "ENQUIRIES & BOOKINGS", items: [{ key: "leads", label: "Enquiries", icon: Target, badge: data.leads.length }, { key: "deals", label: "Trip Bookings", icon: Handshake, badge: data.deals.length }, { key: "pipeline", label: "Booking Pipeline", icon: TrendingUp }] },
+        { label: "WORKSPACE", items: [{ key: "tasks", label: "Tasks", icon: ListChecks, badge: openTasks }, { key: "calendar", label: "Calendar", icon: CalendarDays }, { key: "reports", label: "Reports", icon: BarChart3 }] },
+        { label: "FINANCE", items: [{ key: "quotations", label: "Quotations", icon: FileText }, { key: "payments", label: "Payments", icon: Wallet }] },
+      ];
 
   const profileMenuContent = (
     <>
@@ -168,10 +214,23 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
         </div>
 
         <div className="ws-wrap">
-          <div className="ws-switch">
-            <span className="workspace-logo" style={{ background: data.organization.accent }}>TP</span>
+          <button className="ws-switch" type="button" aria-expanded={workspaceMenuOpen} onClick={() => setWorkspaceMenuOpen((open) => !open)}>
+            <span className="workspace-logo" style={{ background: data.organization.accent }}>{data.organization.slug === "homigo" ? "HO" : "TP"}</span>
             <div><strong>{data.organization.name}</strong><small>{data.organization.industry} workspace</small></div>
-          </div>
+            <ChevronDown size={14} />
+          </button>
+          {workspaceMenuOpen && <div className="side-menu workspace-menu">
+            <button onClick={() => void switchWorkspace("adventure")}>
+              <span className="workspace-logo">TP</span>
+              <span><strong>The Adventure Pinnacle</strong><small>Travel &amp; Tourism</small></span>
+              {data.organization.slug === "adventure" ? <Check size={14} /> : null}
+            </button>
+            <button onClick={() => void switchWorkspace("homigo")}>
+              <span className="workspace-logo" style={{ background: "#A3E635", color: "#17210b" }}>HO</span>
+              <span><strong>HOMIGO</strong><small>Home Services &amp; Cleaning</small></span>
+              {data.organization.slug === "homigo" ? <Check size={14} /> : null}
+            </button>
+          </div>}
         </div>
 
         <nav className="nav-scroll">
@@ -212,7 +271,7 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
             <button className="mobile-brand" onClick={() => navigate("dashboard")}><Logo compact brandName={data.organization.name} /><span className="mobile-org">{data.organization.name}</span></button>
             <button className="top-search" onClick={() => setSearchOpen(true)}><Search size={16} /><span>Search here...</span><kbd>⌘ K</kbd></button>
           </div>
-          <h1 className="top-title">{pageTitles[view]}</h1>
+          <h1 className="top-title">{data.organization.slug === "adventure" ? ({ dashboard: "Dashboard", contacts: "Travellers", companies: "Travel Partners", maids: "Staff Directory", leads: "Enquiries", deals: "Trip Bookings", pipeline: "Booking Pipeline", tasks: "Tasks", calendar: "Calendar", reports: "Reports", quotations: "Quotations", payments: "Payments", settings: "Settings", more: "More" } as Record<ViewKey, string>)[view] : pageTitles[view]}</h1>
           <div className="top-right">
             <button className="assistant-pill" onClick={() => setAssistantOpen(true)}><Sparkles size={14} /><span>Assistant</span></button>
             <button className="icon-btn bell" onClick={() => setNotificationsOpen(true)} aria-label="Notifications"><Bell size={18} />{unread > 0 && <i className="ping" />}</button>

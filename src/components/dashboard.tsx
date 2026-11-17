@@ -207,7 +207,7 @@ export function OwnerDashboard({ data, onNavigate, onAssistant, onAddContact, on
     { label: data.profile.dealPlural || "Deals", value: String(data.deals.length), detail: money(data.deals.reduce((sum, deal) => sum + deal.value, 0)), icon: Handshake, tone: "lilac", foot: data.organization.slug === "homigo" ? "Confirmed placements" : `${data.deals.filter((deal) => deal.probability >= 70).length} likely to close`, onClick: () => onNavigate("deals") },
     { label: "Payments collected", value: money(collected), detail: `${data.payments.length} payment records`, icon: CircleDollarSign, tone: "dark", foot: `${money(pending)} outstanding`, onClick: () => onNavigate("payments") },
     data.organization.slug === "homigo"
-      ? { label: "Maid profiles", value: String(data.maids.length), detail: `${data.maids.filter((maid) => maid.availability.toLowerCase().includes("available") && !maid.availability.toLowerCase().includes("not available")).length} marked available`, icon: Users, tone: "dark", foot: "Worker directory", onClick: () => onNavigate("maids") }
+      ? { label: "Staff records", value: String(data.maids.length), detail: `${data.maids.filter((maid) => maid.availability.toLowerCase().includes("available") && !maid.availability.toLowerCase().includes("not available")).length} marked available`, icon: Users, tone: "dark", foot: "Staff directory", onClick: () => onNavigate("maids") }
       : { label: "Conversion rate", value: `${conversion}%`, detail: `${wonLeads} won of ${data.leads.length}`, icon: TrendingUp, tone: "dark", foot: "Based on recorded enquiries", onClick: () => onNavigate("reports") },
   ], [collected, conversion, data, onNavigate, pending, wonLeads]);
 

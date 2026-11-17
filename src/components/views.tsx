@@ -66,7 +66,7 @@ export function ContactsView({ data, onAdd, onView, onEdit, onDelete }: {
             <tbody>
               {filtered.map((contact) => (
                 <tr key={contact.id}>
-                  <td onClick={() => onView(contact)} className="clickable"><div className="person"><Avatar name={contact.name} size="sm" /><div><strong>{contact.name}</strong><small>{contact.email || "No email"}</small></div></div></td>
+                  <td onClick={() => onView(contact)} className="clickable"><div className="person"><Avatar name={contact.name} size="sm" /><div><strong>{contact.name}</strong><small>{data.organization.slug === "homigo" ? [contact.customData.service_type, contact.customData.location, contact.customData.requirement].filter(Boolean).join(" · ") || "Service details pending" : contact.email || "No email"}</small></div></div></td>
                   <td><span className="company-cell"><Building2 size={12} />{contact.company || (data.organization.slug === "homigo" ? "Individual client" : "Individual")}</span></td>
                   <td className="muted">{contact.phone}</td>
                   <td><Status value={contact.segment} /></td>
@@ -88,7 +88,7 @@ export function ContactsView({ data, onAdd, onView, onEdit, onDelete }: {
           {filtered.map((contact) => (
             <div key={contact.id} className="mobile-row">
               <div className="mobile-row-top">
-                <button className="person" onClick={() => onView(contact)}><Avatar name={contact.name} size="sm" /><div><strong>{contact.name}</strong><small>{contact.company || contact.email}</small></div></button>
+                <button className="person" onClick={() => onView(contact)}><Avatar name={contact.name} size="sm" /><div><strong>{contact.name}</strong><small>{data.organization.slug === "homigo" ? contact.customData.service_type || contact.company || "Cleaning client" : contact.company || contact.email}</small></div></button>
                 <Status value={contact.segment} />
               </div>
               <div className="mobile-row-meta"><span>{contact.phone}</span><strong>{money(contact.totalValue)}</strong></div>
@@ -331,11 +331,11 @@ export function DealsView({ data, onAdd, onOpen, onStage }: {
     <div className="page">
       <PageHead
         eyebrow={data.organization.slug === "homigo" ? "PLACEMENT MANAGEMENT" : "DEAL MANAGEMENT"}
-        title={data.organization.slug === "homigo" ? "Maid Placements" : "Trip Bookings"}
-        subtitle={data.organization.slug === "homigo" ? "Track shortlisted workers, start dates, placement value and current stage" : "Drag deals between stages, or update the stage from each card"}
+        title={data.profile.dealPlural || "Trip Bookings"}
+        subtitle={data.organization.slug === "homigo" ? "Manage confirmed cleaning and home-service bookings" : "Drag deals between stages, or update the stage from each card"}
         actions={<>
           <div className="view-switch"><button className={mode === "board" ? "active" : ""} onClick={() => setMode("board")}><LayoutGrid size={14} /> Board</button><button className={mode === "list" ? "active" : ""} onClick={() => setMode("list")}><List size={14} /> List</button></div>
-          <button className="btn btn-primary" onClick={onAdd}><Plus size={16} /> {data.organization.slug === "homigo" ? "New placement" : "New deal"}</button>
+          <button className="btn btn-primary" onClick={onAdd}><Plus size={16} /> {data.organization.slug === "homigo" ? "New service booking" : "New deal"}</button>
         </>}
       />
 
@@ -419,9 +419,9 @@ export function PipelineView({ data, onOpen, onSettings }: { data: WorkspaceData
   return (
     <div className="page">
       <PageHead
-        eyebrow={data.organization.slug === "homigo" ? "MAID SUPPLY OPERATIONS" : "SALES OPERATIONS"}
-        title={data.organization.slug === "homigo" ? "Maid Placement Pipeline" : "Sales pipeline"}
-        subtitle={`${data.profile.pipelineName} · ${data.stages.length} stages, from first request to confirmed placement`}
+        eyebrow={data.organization.slug === "homigo" ? "SERVICE OPERATIONS" : "SALES OPERATIONS"}
+        title={data.profile.pipelineName}
+        subtitle={`${data.profile.pipelineName} · ${data.stages.length} stages, from first enquiry to confirmed booking`}
         actions={<><button className="btn btn-secondary" onClick={onSettings}><Settings2 size={15} /> Customize stages</button><button className="btn btn-primary" onClick={() => onOpen(data.deals[0])} disabled={!data.deals.length}><Handshake size={15} /> Review deals</button></>}
       />
 
@@ -976,31 +976,32 @@ const moduleIcons: Record<string, typeof ShieldCheck> = { shield: ShieldCheck, r
 
 export function MoreView({ data, onNavigate, onToast }: { data: WorkspaceData; onNavigate: (view: string) => void; onToast: (message: string) => void }) {
   const items = [
-    { label: data.profile.customerPlural, view: "contacts", icon: Users, sub: `${data.customers.length} client records` },
-    ...(data.organization.slug === "homigo" ? [{ label: "Maid Directory", view: "maids", icon: ShieldCheck, sub: `${data.maids.length} worker profiles` }] : []),
-    { label: "Companies", view: "companies", icon: Building2, sub: `${data.companies.length} companies` },
-    { label: "Leads", view: "leads", icon: Target, sub: `${data.leads.length} ${data.profile.leadPlural.toLowerCase()}` },
-    { label: data.profile.dealPlural || "Deals", view: "deals", icon: Handshake, sub: `${data.deals.length} active records` },
-    { label: data.organization.slug === "homigo" ? "Placement pipeline" : "Sales pipeline", view: "pipeline", icon: TrendingUp, sub: data.organization.slug === "homigo" ? "Client requirements to confirmed placement" : "Forecast & funnel" },
+    { label: data.profile.customerPlural, view: "contacts", icon: Users, sub: data.customers.length + " customer records" },
+    ...(data.organization.slug === "homigo"
+      ? [{ label: "Staff Directory", view: "maids", icon: ShieldCheck, sub: data.maids.length + " staff profiles" }]
+      : [{ label: "Travel Partners", view: "companies", icon: Building2, sub: data.companies.length + " partner records" }]),
+    { label: data.profile.leadPlural, view: "leads", icon: Target, sub: data.leads.length + " enquiries" },
+    { label: data.profile.dealPlural || "Deals", view: "deals", icon: Handshake, sub: data.deals.length + " active records" },
+    { label: data.profile.pipelineName, view: "pipeline", icon: TrendingUp, sub: "Stages and follow-ups" },
     { label: "Calendar", view: "calendar", icon: CalendarDays, sub: "Schedule & closes" },
-    { label: data.organization.slug === "homigo" ? "Service Agreements" : "Quotations", view: "quotations", icon: FileText, sub: `${data.quotations.length} records` },
+    { label: data.organization.slug === "homigo" ? "Service Agreements" : "Quotations", view: "quotations", icon: FileText, sub: data.quotations.length + " records" },
     { label: "Payments", view: "payments", icon: Wallet, sub: "Collections & dues" },
     { label: "Reports", view: "reports", icon: BarChart3, sub: "Insights & performance" },
     { label: "Settings", view: "settings", icon: Settings2, sub: "Workspace configuration" },
   ];
   return (
     <div className="page">
-      <PageHead eyebrow="MORE" title="Tools & modules" subtitle={`Everything in ${data.organization.name}`} actions={<button className="btn btn-secondary" onClick={() => onToast("Business assistant opened")}><Sparkles size={15} /> Assistant</button>} />
+      <PageHead eyebrow="MORE" title="Tools & modules" subtitle={"Everything in " + data.organization.name} actions={<button className="btn btn-secondary" onClick={() => onToast("Business assistant opened")}><Sparkles size={15} /> Assistant</button>} />
       <section><p className="eyebrow">WORKSPACE</p><div className="more-grid">
         {items.map((item) => <button key={item.view} className="more-card" onClick={() => onNavigate(item.view)}><span className="summary-icon yellow"><item.icon size={17} /></span><div><strong>{item.label}</strong><small>{item.sub}</small></div><ChevronRight size={15} /></button>)}
       </div></section>
       <section><p className="eyebrow">{data.organization.industry.toUpperCase()} MODULES</p><div className="more-grid">
         {data.profile.modules.map((module) => {
           const Icon = moduleIcons[module.icon] ?? Package;
-          return <button key={module.label} className="more-card" onClick={() => onToast(`${module.label} module opened`)}><span className="summary-icon lilac"><Icon size={17} /></span><div><strong>{module.label}</strong><small>{data.organization.industry} workflow</small></div><ChevronRight size={15} /></button>;
+          return <button key={module.label} className="more-card" onClick={() => onToast(module.label + " module opened")}><span className="summary-icon lilac"><Icon size={17} /></span><div><strong>{module.label}</strong><small>{data.organization.industry} workflow</small></div><ChevronRight size={15} /></button>;
         })}
       </div></section>
-      <Card><div className="more-footer"><div><strong>{data.organization.name} Agency CRM</strong><small>Clients · Maid directory · Placements · Schedules</small></div><span className="badge badge-gray">{data.organization.name}</span></div></Card>
+      <Card><div className="more-footer"><div><strong>{data.organization.name} CRM</strong><small>One simple system to run your business · v1.0</small></div><span className="badge badge-gray">{data.organization.name}</span></div></Card>
     </div>
   );
 }
