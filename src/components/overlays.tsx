@@ -358,7 +358,7 @@ export function ManualInvoiceModal({ data, onClose, onSave }: {
   onSave: (payload: Record<string, unknown>) => Promise<void>;
 }) {
   const [saving, setSaving] = useState(false);
-  const [clientMode, setClientMode] = useState<"existing" | "new>("new");
+  const [clientMode, setClientMode] = useState<"existing" | "new">("new");
   const [dueDate] = useState(() => {
     const date = new Date();
     date.setDate(date.getDate() + 7);
