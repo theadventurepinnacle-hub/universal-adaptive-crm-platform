@@ -3,7 +3,7 @@
 import { OwnerDashboard } from "@/components/dashboard";
 import {
   AssistantPanel, CommandPalette, CompanyDrawer, ConfirmDialog, ContactModal, CustomerDrawer, DealModal,
-  LeadDrawer, ManualInvoiceModal, NotificationsPanel, QuickAddModal,
+  LeadDrawer, ManualInvoiceModal, NotificationsPanel, QuickAddModal, RecordPaymentModal, InvoicePreviewModal,
 } from "@/components/overlays";
 import { Avatar } from "@/components/ui";
 import { MaidDirectoryView } from "@/components/maid-directory";
@@ -50,6 +50,8 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
   const [contactModal, setContactModal] = useState<{ contact: CustomerView | null } | null>(null);
   const [dealModal, setDealModal] = useState(false);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  const [recordPaymentId, setRecordPaymentId] = useState<number | null>(null);
+  const [previewPaymentId, setPreviewPaymentId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CustomerView | null>(null);
   const [recordDeleteTarget, setRecordDeleteTarget] = useState<{ type: "lead" | "deal"; id: number; name: string } | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
@@ -115,10 +117,23 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
     const stage = data.stages.find((item) => item.id === stageId);
     void mutate({ action: "moveDeal", id: deal.id, stageId }, `${deal.title} moved to ${stage?.name ?? "new stage"}`);
   };
-  const collect = (id: number) => { void mutate({ action: "collectPayment", id }, "Payment marked as collected"); };
+  const collect = (id: number) => { setRecordPaymentId(id); };
+  const saveRecordedPayment = async (payload: Record<string, unknown>) => {
+    const success = await mutate(payload, "Payment recorded and invoice balance updated");
+    if (success) setRecordPaymentId(null);
+  };
   const saveManualInvoice = async (payload: Record<string, unknown>) => {
-    const success = await mutate(payload, "Manual invoice created");
-    if (success) setInvoiceModalOpen(false);
+    const success = await mutate(payload, "Invoice created and client account updated");
+    if (success) {
+      setInvoiceModalOpen(false);
+      const response = await fetch("/api/crm?industry=" + data.organization.slug, { cache: "no-store" });
+      if (response.ok) {
+        const refreshed = await response.json() as WorkspaceData;
+        setData(refreshed);
+        const latestInvoice = [...refreshed.payments].sort((a, b) => b.id - a.id)[0];
+        if (latestInvoice) setPreviewPaymentId(latestInvoice.id);
+      }
+    }
   };
   const saveContact = async (payload: Record<string, unknown>) => {
     const success = await mutate(payload, payload.action === "createContact" ? "Client added" : "Client updated");
@@ -272,7 +287,7 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
             : <CalendarView data={data} onAdd={() => setQuickAdd("task")} onComplete={completeTask} />)}
           {view === "reports" && <ReportsView data={data} onToast={showToast} />}
           {view === "quotations" && <QuotationsView data={data} onToast={showToast} />}
-          {view === "payments" && <PaymentsView data={data} onCollect={collect} onAddClient={() => setContactModal({ contact: null })} onNewInvoice={() => setInvoiceModalOpen(true)} />}
+          {view === "payments" && <PaymentsView data={data} onCollect={collect} onAddClient={() => setContactModal({ contact: null })} onNewInvoice={() => setInvoiceModalOpen(true)} onRecordPayment={(id) => setRecordPaymentId(id)} onPreviewInvoice={(id) => setPreviewPaymentId(id)} />}
           {view === "settings" && <SettingsView data={data} onToast={showToast} />}
           {view === "more" && <MoreView data={data} onNavigate={navigate} onToast={showToast} />}
         </main>
@@ -289,6 +304,11 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
       {contactModal && <ContactModal data={data} contact={contactModal.contact} onClose={() => setContactModal(null)} onSave={saveContact} />}
       {dealModal && <DealModal data={data} onClose={() => setDealModal(false)} onSave={saveDeal} />}
       {invoiceModalOpen && <ManualInvoiceModal data={data} onClose={() => setInvoiceModalOpen(false)} onSave={saveManualInvoice} />}
+      {recordPaymentId !== null && <RecordPaymentModal data={data} initialPaymentId={recordPaymentId} onClose={() => setRecordPaymentId(null)} onSave={saveRecordedPayment} />}
+      {previewPaymentId !== null && (() => {
+        const payment = data.payments.find((item) => item.id === previewPaymentId);
+        return payment ? <InvoicePreviewModal organizationName={data.organization.name} payment={payment} onClose={() => setPreviewPaymentId(null)} /> : null;
+      })()}
       {deleteTarget && (
         <ConfirmDialog
           title={`Delete ${deleteTarget.name}?`}
