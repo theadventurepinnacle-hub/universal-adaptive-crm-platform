@@ -202,11 +202,13 @@ export function OwnerDashboard({ data, onNavigate, onAssistant, onAddContact, on
   const today = new Intl.DateTimeFormat("en-IN", { weekday: "short", day: "numeric", month: "short" }).format(new Date());
 
   const kpis = useMemo(() => [
-    { label: data.profile.customerPlural, value: String(data.customers.length), detail: "Saved traveller records", icon: Users, tone: "mint", foot: `${data.companies.length} companies`, onClick: () => onNavigate("contacts") },
+    { label: data.profile.customerPlural, value: String(data.customers.length), detail: data.organization.slug === "homigo" ? "Active client accounts" : "Saved traveller records", icon: Users, tone: "mint", foot: data.organization.slug === "homigo" ? "Client database" : `${data.companies.length} companies`, onClick: () => onNavigate("contacts") },
     { label: data.profile.leadPlural, value: String(data.leads.length), detail: `${data.leads.filter((lead) => lead.score >= 75).length} high-priority enquiries`, icon: Target, tone: "yellow", foot: `${data.leads.filter((lead) => !lead.assignedToId).length} unassigned`, onClick: () => onNavigate("leads") },
-    { label: "Active deals", value: String(data.deals.length), detail: money(data.deals.reduce((sum, deal) => sum + deal.value, 0)), icon: Handshake, tone: "lilac", foot: `${data.deals.filter((deal) => deal.probability >= 70).length} likely to close`, onClick: () => onNavigate("deals") },
+    { label: data.profile.dealPlural || "Deals", value: String(data.deals.length), detail: money(data.deals.reduce((sum, deal) => sum + deal.value, 0)), icon: Handshake, tone: "lilac", foot: data.organization.slug === "homigo" ? "Confirmed placements" : `${data.deals.filter((deal) => deal.probability >= 70).length} likely to close`, onClick: () => onNavigate("deals") },
     { label: "Payments collected", value: money(collected), detail: `${data.payments.length} payment records`, icon: CircleDollarSign, tone: "dark", foot: `${money(pending)} outstanding`, onClick: () => onNavigate("payments") },
-    { label: "Conversion rate", value: `${conversion}%`, detail: `${wonLeads} won of ${data.leads.length}`, icon: TrendingUp, tone: "dark", foot: "Based on recorded enquiries", onClick: () => onNavigate("reports") },
+    data.organization.slug === "homigo"
+      ? { label: "Maid profiles", value: String(data.maids.length), detail: `${data.maids.filter((maid) => maid.availability.toLowerCase().includes("available") && !maid.availability.toLowerCase().includes("not available")).length} marked available`, icon: Users, tone: "dark", foot: "Worker directory", onClick: () => onNavigate("maids") }
+      : { label: "Conversion rate", value: `${conversion}%`, detail: `${wonLeads} won of ${data.leads.length}`, icon: TrendingUp, tone: "dark", foot: "Based on recorded enquiries", onClick: () => onNavigate("reports") },
   ], [collected, conversion, data, onNavigate, pending, wonLeads]);
 
   return (
@@ -218,7 +220,7 @@ export function OwnerDashboard({ data, onNavigate, onAssistant, onAddContact, on
         actions={<>
           <span className="date-pill"><CalendarDays size={14} /> {today}</span>
           <button className="btn btn-secondary btn-sm" onClick={onAssistant}><Sparkles size={14} /> Assistant</button>
-          <button className="btn btn-primary btn-sm" onClick={onAddContact}><Plus size={15} /> Add contact</button>
+          <button className="btn btn-primary btn-sm" onClick={onAddContact}><Plus size={15} /> {data.profile.customerLabel === "Client" ? "Add client" : "Add contact"}</button>
         </>}
       />
 
@@ -248,11 +250,11 @@ export function OwnerDashboard({ data, onNavigate, onAssistant, onAddContact, on
       <section className="grid-main">
         <RevenueChart data={data} />
         <Card>
-          <CardHead title="Sales by source" subtitle={`Where your ${data.profile.leadPlural.toLowerCase()} come from`} actions={<button className="link" onClick={() => onNavigate("reports")}>Details</button>} />
+          <CardHead title={data.organization.slug === "homigo" ? "Service requests by source" : "Sales by source"} subtitle={`Where your ${data.profile.leadPlural.toLowerCase()} come from`} actions={<button className="link" onClick={() => onNavigate("reports")}>Details</button>} />
           <SourceDonut data={data} />
           <div className="mini-metrics">
-            <div><span>Best source</span><strong>{data.profile.sources[0]}</strong><small>{data.leads.filter((lead) => lead.source === data.profile.sources[0]).length} leads</small></div>
-            <div><span>Pipeline value</span><strong>{money(data.deals.reduce((sum, deal) => sum + deal.value, 0))}</strong><small>{data.deals.length} active deals</small></div>
+            <div><span>Best source</span><strong>{data.profile.sources[0]}</strong><small>{data.leads.filter((lead) => lead.source === data.profile.sources[0]).length} requests</small></div>
+            <div><span>{data.organization.slug === "homigo" ? "Placement value" : "Pipeline value"}</span><strong>{money(data.deals.reduce((sum, deal) => sum + deal.value, 0))}</strong><small>{data.deals.length} {data.profile.dealPlural?.toLowerCase() || "active deals"}</small></div>
           </div>
         </Card>
       </section>
@@ -260,15 +262,15 @@ export function OwnerDashboard({ data, onNavigate, onAssistant, onAddContact, on
       <section className="grid-halves">
         <Card>
           <CardHead
-            title="Sales performance"
-            subtitle="Deal value created this week"
+            title={data.organization.slug === "homigo" ? "Placement performance" : "Sales performance"}
+            subtitle={data.organization.slug === "homigo" ? "Placement value recorded this week" : "Deal value created this week"}
             actions={<button className="btn btn-secondary btn-sm" onClick={() => onNavigate("reports")}>Open report</button>}
           />
           <SalesBars data={data} />
           <div className="stat-row">
             <div><span>Top day</span><strong>{data.profile.chart.some((point) => point.value > 0) ? money(Math.max(...data.profile.chart.map((point) => point.value))) : "—"}</strong><small>Based on recorded sales</small></div>
-            <div><span>Avg. deal size</span><strong>{money(data.deals.reduce((sum, deal) => sum + deal.value, 0) / Math.max(data.deals.length, 1))}</strong><small>Across open deals</small></div>
-            <div><span>Win rate</span><strong>{conversion}%</strong><small>Last 30 days</small></div>
+            <div><span>{data.organization.slug === "homigo" ? "Avg. placement value" : "Avg. deal size"}</span><strong>{money(data.deals.reduce((sum, deal) => sum + deal.value, 0) / Math.max(data.deals.length, 1))}</strong><small>Across recorded placements</small></div>
+            <div><span>{data.organization.slug === "homigo" ? "Placement rate" : "Win rate"}</span><strong>{conversion}%</strong><small>Based on recorded requests</small></div>
           </div>
         </Card>
 
@@ -294,7 +296,7 @@ export function OwnerDashboard({ data, onNavigate, onAssistant, onAddContact, on
       <section className="grid-main">
         <Card pad={false}>
           <div className="card-pad card-head-border">
-            <CardHead title="Recent contacts" subtitle="The latest relationships in your CRM" actions={<button className="link" onClick={() => onNavigate("contacts")}>View all <ArrowRight size={13} /></button>} />
+            <CardHead title={data.organization.slug === "homigo" ? "Recent clients" : "Recent contacts"} subtitle="The latest relationships in your CRM" actions={<button className="link" onClick={() => onNavigate("contacts")}>View all <ArrowRight size={13} /></button>} />
           </div>
           <div className="table-wrap">
             <table className="data-table">
@@ -328,7 +330,7 @@ export function OwnerDashboard({ data, onNavigate, onAssistant, onAddContact, on
 
       <section className="grid-halves">
         <Card>
-          <CardHead title="Hot leads" subtitle="Highest-scoring opportunities to call today" actions={<button className="link" onClick={() => onNavigate("leads")}>All leads</button>} />
+          <CardHead title={data.organization.slug === "homigo" ? "Priority service requests" : "Hot leads"} subtitle={data.organization.slug === "homigo" ? "Client requirements that need the next action" : "Highest-scoring opportunities to call today"} actions={<button className="link" onClick={() => onNavigate("leads")}>All leads</button>} />
           <div className="hot-lead-list">
             {hotLeads.slice(0, 4).map((lead) => (
               <button key={lead.id} className="hot-lead" onClick={() => onOpenLead(lead)}>
@@ -341,8 +343,17 @@ export function OwnerDashboard({ data, onNavigate, onAssistant, onAddContact, on
           </div>
         </Card>
         <Card>
-          <CardHead title="Team performance" subtitle="Revenue attributed this month" actions={<button className="link" onClick={() => onNavigate("reports")}>Report</button>} />
-          <div className="team-list">
+          <CardHead title={data.organization.slug === "homigo" ? "Maid workforce" : "Team performance"} subtitle={data.organization.slug === "homigo" ? "Latest worker profiles and recorded locations" : "Revenue attributed this month"} actions={<button className="link" onClick={() => onNavigate("reports")}>Report</button>} />
+          {data.organization.slug === "homigo" ? <div className="team-list">
+            {data.maids.slice(0, 4).map((maid, index) => (
+              <div key={maid.id} className="team-row">
+                <span className={`rank rank-${index + 1}`}>{index + 1}</span>
+                <Avatar name={maid.name} size="sm" />
+                <div className="team-main"><div><strong>{maid.name}</strong><span>{maid.serviceTypes} · {maid.location || "Location not recorded"}</span></div><div className="progress-track"><i style={{ width: maid.availability.toLowerCase().includes("available") ? "85%" : "25%" }} /></div></div>
+                <div className="team-side"><b>{maid.age ? `${maid.age} yrs` : "Age —"}</b><small>{maid.availability}</small></div>
+              </div>
+            ))}
+          </div> : <div className="team-list">
             {team.slice(0, 4).map((member, index) => (
               <div key={member.id} className="team-row">
                 <span className={`rank rank-${index + 1}`}>{index + 1}</span>
@@ -351,7 +362,7 @@ export function OwnerDashboard({ data, onNavigate, onAssistant, onAddContact, on
                 <div className="team-side"><b>{money(member.revenue)}</b><small className={member.trend >= 0 ? "trend-up-text" : "trend-down-text"}>{member.trend >= 0 ? "+" : ""}{member.trend}%</small></div>
               </div>
             ))}
-          </div>
+          </div>}
         </Card>
       </section>
     </div>
