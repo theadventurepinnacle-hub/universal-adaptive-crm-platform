@@ -156,6 +156,13 @@ export async function POST(request: NextRequest) {
         priority: text(body.priority, "Medium"),
         probability: Number(body.probability ?? 50),
         source: text(body.source, "Referral"),
+        maidId: body.maidId ? Number(body.maidId) : null,
+        startAt: text(body.startAt),
+        schedule: text(body.schedule),
+        workerPay: Number(body.workerPay ?? 0),
+        clientFee: Number(body.clientFee ?? body.value ?? 0),
+        serviceRequestId: body.serviceRequestId ? Number(body.serviceRequestId) : null,
+        placementNotes: text(body.placementNotes),
       }));
     }
 
