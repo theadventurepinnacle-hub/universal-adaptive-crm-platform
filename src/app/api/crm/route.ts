@@ -6,6 +6,8 @@ import {
   createContact,
   createDeal,
   createLead,
+  createMaid,
+  updateMaid,
   createTask,
   deleteContact,
   getWorkspaceData,
@@ -94,6 +96,35 @@ export async function POST(request: NextRequest) {
         company: text(body.company),
         segment: text(body.segment, "Active"),
         totalValue: Number(body.totalValue ?? 0),
+        customData: typeof body.customData === "object" && body.customData ? body.customData as Record<string, unknown> : {},
+      }));
+    }
+
+    if (action === "createMaid") {
+      if (!text(body.name).trim() || !text(body.phone).trim()) {
+        return Response.json({ error: "Maid name and phone are required" }, { status: 400 });
+      }
+      return Response.json(await createMaid({
+        organizationSlug: industry,
+        name: text(body.name),
+        phone: text(body.phone),
+        age: text(body.age),
+        location: text(body.location),
+        serviceTypes: text(body.serviceTypes),
+        availability: text(body.availability),
+        workNotes: text(body.workNotes),
+      }));
+    }
+
+    if (action === "updateMaid") {
+      return Response.json(await updateMaid(industry, Number(body.id), {
+        name: body.name !== undefined ? text(body.name) : undefined,
+        phone: body.phone !== undefined ? text(body.phone) : undefined,
+        age: body.age !== undefined ? text(body.age) : undefined,
+        location: body.location !== undefined ? text(body.location) : undefined,
+        serviceTypes: body.serviceTypes !== undefined ? text(body.serviceTypes) : undefined,
+        availability: body.availability !== undefined ? text(body.availability) : undefined,
+        workNotes: body.workNotes !== undefined ? text(body.workNotes) : undefined,
       }));
     }
 
