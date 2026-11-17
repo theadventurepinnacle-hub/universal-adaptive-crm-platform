@@ -13,6 +13,7 @@ import {
   getWorkspaceData,
   moveDeal,
   recordQuickAction,
+  saveAttendance,
   updateContact,
   updateLeadStage,
 } from "@/lib/crm-data";
@@ -97,6 +98,21 @@ export async function POST(request: NextRequest) {
         segment: text(body.segment, "Active"),
         totalValue: Number(body.totalValue ?? 0),
         customData: typeof body.customData === "object" && body.customData ? body.customData as Record<string, unknown> : {},
+      }));
+    }
+
+    if (action === "saveAttendance") {
+      if (!body.placementId || !body.maidId || !text(body.workDate) || !text(body.status)) {
+        return Response.json({ error: "Placement, maid, date and attendance status are required" }, { status: 400 });
+      }
+      return Response.json(await saveAttendance(industry, {
+        placementId: Number(body.placementId),
+        maidId: Number(body.maidId),
+        workDate: text(body.workDate),
+        status: text(body.status),
+        checkIn: text(body.checkIn),
+        checkOut: text(body.checkOut),
+        notes: text(body.notes),
       }));
     }
 
