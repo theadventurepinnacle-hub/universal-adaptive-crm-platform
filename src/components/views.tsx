@@ -67,7 +67,7 @@ export function ContactsView({ data, onAdd, onView, onEdit, onDelete }: {
               {filtered.map((contact) => (
                 <tr key={contact.id}>
                   <td onClick={() => onView(contact)} className="clickable"><div className="person"><Avatar name={contact.name} size="sm" /><div><strong>{contact.name}</strong><small>{contact.email || "No email"}</small></div></div></td>
-                  <td><span className="company-cell"><Building2 size={12} />{contact.company || "Individual"}</span></td>
+                  <td><span className="company-cell"><Building2 size={12} />{contact.company || (data.organization.slug === "homigo" ? "Individual client" : "Individual")}</span></td>
                   <td className="muted">{contact.phone}</td>
                   <td><Status value={contact.segment} /></td>
                   <td>{contact.owner.split(" ")[0]}</td>
