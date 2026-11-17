@@ -458,6 +458,55 @@ export async function collectPayment(slug: IndustryKey, paymentId: number) {
   return getWorkspaceData(slug);
 }
 
+export async function createManualInvoice(slug: IndustryKey, input: {
+  customerId: number;
+  description: string;
+  totalAmount: number;
+  paidAmount: number;
+  dueAt: string;
+}) {
+  const organization = await resolveOrganization(slug);
+  const [customer] = await db.select().from(customers).where(
+    and(eq(customers.id, input.customerId), eq(customers.organizationId, organization.id)),
+  ).limit(1);
+  if (!customer || (slug === "homigo" && customer.customData?.record_type === "staff")) {
+    throw new Error("Select a valid client for this invoice");
+  }
+  const description = input.description.trim();
+  const totalAmount = Math.round(input.totalAmount);
+  const paidAmount = Math.round(input.paidAmount);
+  const dueAt = new Date(input.dueAt);
+  if (!description) throw new Error("Invoice description is required");
+  if (!Number.isFinite(totalAmount) || totalAmount <= 0) throw new Error("Invoice amount must be greater than zero");
+  if (!Number.isFinite(paidAmount) || paidAmount < 0 || paidAmount > totalAmount) throw new Error("Advance received must be between zero and the invoice total");
+  if (Number.isNaN(dueAt.getTime())) throw new Error("Choose a valid due date");
+  const [owner] = await db.select().from(users).where(
+    and(eq(users.organizationId, organization.id), eq(users.role, "owner")),
+  ).limit(1);
+  const reference = `HOM-INV-${Date.now()}`;
+  const status = paidAmount >= totalAmount ? "Paid" : "Pending";
+  const [invoice] = await db.insert(payments).values({
+    organizationId: organization.id,
+    customerId: customer.id,
+    assignedToId: owner?.id ?? null,
+    reference,
+    description,
+    totalAmount,
+    paidAmount,
+    dueAt,
+    status,
+  }).returning();
+  await db.insert(activities).values({
+    organizationId: organization.id,
+    actorId: owner?.id ?? null,
+    customerId: customer.id,
+    type: "payment",
+    title: "Manual invoice created",
+    detail: `${invoice.reference} · ₹${totalAmount} for ${customer.name}`,
+  });
+  return getWorkspaceData(slug);
+}
+
 export async function createMaid(input: {
   organizationSlug: IndustryKey;
   name: string;
@@ -597,6 +646,37 @@ export async function deleteContact(slug: IndustryKey, contactId: number) {
     type: "contact",
     title: "Contact deleted",
     detail: `${contact.name} was removed from the CRM`,
+  });
+  return getWorkspaceData(slug);
+}
+
+export async function deleteLead(slug: IndustryKey, leadId: number) {
+  const organization = await resolveOrganization(slug);
+  const [lead] = await db.delete(leads).where(
+    and(eq(leads.id, leadId), eq(leads.organizationId, organization.id)),
+  ).returning();
+  if (!lead) throw new Error("Service request not found");
+  await db.insert(activities).values({
+    organizationId: organization.id,
+    type: "lead",
+    title: "Service request deleted",
+    detail: `${lead.name} request was removed from the workspace`,
+  });
+  return getWorkspaceData(slug);
+}
+
+export async function deleteDeal(slug: IndustryKey, dealId: number) {
+  const organization = await resolveOrganization(slug);
+  const [deal] = await db.delete(deals).where(
+    and(eq(deals.id, dealId), eq(deals.organizationId, organization.id)),
+  ).returning();
+  if (!deal) throw new Error("Placement not found");
+  await db.insert(activities).values({
+    organizationId: organization.id,
+    customerId: deal.contactId,
+    type: "deal",
+    title: slug === "homigo" ? "Placement deleted" : "Deal deleted",
+    detail: `${deal.title} was removed from the workspace`,
   });
   return getWorkspaceData(slug);
 }
