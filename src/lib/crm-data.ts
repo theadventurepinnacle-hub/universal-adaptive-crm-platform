@@ -568,7 +568,7 @@ export async function createDeal(input: CreateDealInput) {
       schedule: input.schedule?.trim() || "To be confirmed",
       workerPay: Math.max(0, input.workerPay ?? 0),
       clientFee: Math.max(0, input.clientFee ?? input.value),
-      status: "Scheduled",
+      status: input.placementStatus?.trim() || "Scheduled",
       notes: input.placementNotes?.trim() || "",
     });
   }
