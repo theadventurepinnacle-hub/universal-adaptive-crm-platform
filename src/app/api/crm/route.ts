@@ -6,10 +6,13 @@ import {
   createContact,
   createDeal,
   createLead,
+  createManualInvoice,
   createMaid,
   updateMaid,
   createTask,
   deleteContact,
+  deleteDeal,
+  deleteLead,
   getWorkspaceData,
   moveDeal,
   recordQuickAction,
@@ -84,6 +87,25 @@ export async function POST(request: NextRequest) {
     if (action === "advanceLead") return Response.json(await advanceLead(industry, Number(body.id)));
     if (action === "quickAction") return Response.json(await recordQuickAction(industry, Number(body.id), text(body.quickAction, "note")));
     if (action === "collectPayment") return Response.json(await collectPayment(industry, Number(body.id)));
+
+    if (action === "createManualInvoice") {
+      const customerId = Number(body.customerId);
+      const totalAmount = Number(body.totalAmount);
+      const paidAmount = Number(body.paidAmount ?? 0);
+      if (!Number.isSafeInteger(customerId) || customerId <= 0 || !text(body.description).trim() || !Number.isFinite(totalAmount) || !text(body.dueAt)) {
+        return Response.json({ error: "Client, description, invoice amount and due date are required" }, { status: 400 });
+      }
+      return Response.json(await createManualInvoice(industry, {
+        customerId,
+        description: text(body.description),
+        totalAmount,
+        paidAmount,
+        dueAt: text(body.dueAt),
+      }));
+    }
+
+    if (action === "deleteLead") return Response.json(await deleteLead(industry, Number(body.id)));
+    if (action === "deleteDeal") return Response.json(await deleteDeal(industry, Number(body.id)));
 
     if (action === "createContact") {
       if (!text(body.name).trim() || !text(body.phone).trim()) {
