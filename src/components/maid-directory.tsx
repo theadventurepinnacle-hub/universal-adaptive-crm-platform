@@ -59,13 +59,13 @@ export function MaidDirectoryView({ data, onSave }: {
     const payload = editing
       ? { action: "updateMaid", id: editing.id, ...form }
       : { action: "createMaid", ...form };
-    const ok = await onSave(payload, editing ? "Maid profile updated" : "Maid added to directory");
+    const ok = await onSave(payload, editing ? "Staff profile updated" : "Staff member added to directory");
     setSaving(false);
     if (ok) close();
   };
 
   const availableCount = data.maids.filter((maid) => maid.availability.toLowerCase().includes("available") && !maid.availability.toLowerCase().includes("not available")).length;
-  const exportCsv = () => downloadCsv("homigo-maid-directory.csv", [
+  const exportCsv = () => downloadCsv("homigo-staff-directory.csv", [
     ["Name", "Phone", "Age", "Location", "Services", "Availability", "Work Notes", "Verification Note"],
     ...filtered.map((maid) => [maid.name, maid.phone, maid.age, maid.location, maid.serviceTypes, maid.availability, maid.workNotes, maid.verificationNote]),
   ]);
@@ -73,13 +73,13 @@ export function MaidDirectoryView({ data, onSave }: {
   return (
     <div className="page">
       <PageHead
-        eyebrow="HOMIGO · WORKFORCE"
-        title="Maid Directory"
+        eyebrow="HOMIGO · STAFF"
+        title="Staff Directory"
         subtitle="Keep worker contact details, service skills, local availability and work notes in one place."
-        actions={<><ExportButton onClick={exportCsv} /><button className="btn btn-primary" onClick={openNew}><Plus size={16} /> Add maid</button></>}
+        actions={<><ExportButton onClick={exportCsv} /><button className="btn btn-primary" onClick={openNew}><Plus size={16} /> Add staff member</button></>}
       />
       <section className="summary-row">
-        <div className="summary-card"><span className="summary-icon mint"><Users size={16} /></span><div><small>Total maid profiles</small><strong>{data.maids.length}</strong></div></div>
+        <div className="summary-card"><span className="summary-icon mint"><Users size={16} /></span><div><small>Total staff profiles</small><strong>{data.maids.length}</strong></div></div>
         <div className="summary-card"><span className="summary-icon yellow"><UserRound size={16} /></span><div><small>Availability confirmed</small><strong>{availableCount}</strong></div></div>
         <div className="summary-card"><span className="summary-icon lilac"><MapPin size={16} /></span><div><small>Locations recorded</small><strong>{new Set(data.maids.map((maid) => maid.location).filter(Boolean)).size}</strong></div></div>
         <div className="summary-card"><span className="summary-icon peach"><Sparkles size={16} /></span><div><small>Need profile check</small><strong>{data.maids.filter((maid) => !maid.verificationNote || maid.verificationNote.toLowerCase().includes("verify") || maid.verificationNote.toLowerCase().includes("not verified")).length}</strong></div></div>
@@ -94,7 +94,7 @@ export function MaidDirectoryView({ data, onSave }: {
         </div>
         <div className="table-wrap desktop-only">
           <table className="data-table">
-            <thead><tr><th>Maid</th><th>Phone</th><th>Age</th><th>Location</th><th>Services / skills</th><th>Availability</th><th>Profile notes</th><th /></tr></thead>
+            <thead><tr><th>Staff member</th><th>Phone</th><th>Age</th><th>Location</th><th>Services / skills</th><th>Availability</th><th>Profile notes</th><th /></tr></thead>
             <tbody>
               {filtered.map((maid) => (
                 <tr key={maid.id}>
@@ -121,14 +121,14 @@ export function MaidDirectoryView({ data, onSave }: {
         {!filtered.length && <Empty title="No maid profiles found" detail="Add a maid or adjust your search and availability filter." />}
       </Card>
       {editing !== false && <Modal
-        title={editing ? "Edit maid profile" : "Add maid profile"}
+        title={editing ? "Edit staff profile" : "Add staff profile"}
         subtitle="Record only the information needed to match a worker to a service request. Identity documents can be reviewed separately and stored securely."
         onClose={close}
         wide
-        footer={<><button className="btn btn-secondary" onClick={close}>Cancel</button><button className="btn btn-primary" type="submit" form="maid-form" disabled={saving}>{saving ? "Saving..." : editing ? "Save changes" : "Add maid"}</button></>}
+        footer={<><button className="btn btn-secondary" onClick={close}>Cancel</button><button className="btn btn-primary" type="submit" form="maid-form" disabled={saving}>{saving ? "Saving..." : editing ? "Save changes" : "Add staff member"}</button></>}
       >
         <form id="maid-form" className="form-grid" onSubmit={submit}>
-          <Field label="Full name" required><input value={form.name} onChange={(event) => set("name", event.target.value)} required autoFocus placeholder="Maid / worker name" /></Field>
+          <Field label="Full name" required><input value={form.name} onChange={(event) => set("name", event.target.value)} required autoFocus placeholder="Staff member / worker name" /></Field>
           <Field label="Phone number" required><input value={form.phone} onChange={(event) => set("phone", event.target.value)} required type="tel" placeholder="+91..." /></Field>
           <Field label="Age"><input value={form.age} onChange={(event) => set("age", event.target.value)} inputMode="numeric" placeholder="Optional" /></Field>
           <Field label="Base location"><input value={form.location} onChange={(event) => set("location", event.target.value)} placeholder="Area / town" /></Field>

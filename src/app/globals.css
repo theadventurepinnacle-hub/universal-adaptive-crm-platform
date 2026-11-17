@@ -1055,3 +1055,9 @@ a { color: inherit; text-decoration: none; }
 .integration-steps code, .setting-row code { border-radius: 5px; padding: 2px 5px; color: var(--text); background: var(--surface-2); overflow-wrap: anywhere; }
 .setting-row code { display: block; margin-top: 5px; max-width: 100%; font-size: 10px; }
 .setting-row > div { min-width: 0; overflow-wrap: anywhere; }
+
+/* Workspace dropdown opens below the selected organization card. */
+.workspace-menu { top: calc(100% - 5px); bottom: auto; right: 11px; left: 11px; width: auto; }
+.workspace-menu > button > span:nth-child(2) { display: grid; min-width: 0; flex: 1; gap: 2px; }
+.workspace-menu > button strong { color: var(--text); font-size: 10px; font-weight: 650; }
+.workspace-menu > button small { color: var(--muted-2); font-size: 8px; }
