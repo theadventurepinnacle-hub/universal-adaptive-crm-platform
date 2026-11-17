@@ -100,6 +100,14 @@ export type DealView = {
   priority: string;
   probability: number;
   source: string;
+  maidId?: number | null;
+  maidName?: string;
+  startAt?: string | null;
+  schedule?: string;
+  workerPay?: number;
+  clientFee?: number;
+  placementStatus?: string;
+  placementNotes?: string;
 };
 
 export type CompanyView = {
