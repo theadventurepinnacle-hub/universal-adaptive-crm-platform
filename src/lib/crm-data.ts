@@ -590,6 +590,10 @@ export async function moveDeal(slug: IndustryKey, dealId: number, stageId: numbe
   const [pipeline] = await db.select().from(pipelines).where(and(eq(pipelines.id, stage.pipelineId), eq(pipelines.organizationId, organization.id))).limit(1);
   if (!pipeline) throw new Error("Stage does not belong to this workspace");
   await db.update(deals).set({ stageId, probability: stage.isWon ? 100 : deal.probability }).where(eq(deals.id, deal.id));
+  if (slug === "homigo") {
+    const placementStatus = stage.isLost ? "Cancelled" : stage.name === "Placed" ? "Placed" : stage.isWon ? "Active" : stage.name;
+    await db.update(placementDetails).set({ status: placementStatus }).where(eq(placementDetails.dealId, deal.id));
+  }
   await db.insert(activities).values({
     organizationId: organization.id, actorId: deal.ownerId, customerId: deal.contactId,
     type: "deal", title: "Deal stage updated", detail: `${deal.title} moved to ${stage.name}`,
