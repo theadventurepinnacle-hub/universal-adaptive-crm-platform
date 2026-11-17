@@ -136,6 +136,7 @@ export async function POST(request: NextRequest) {
         company: body.company !== undefined ? text(body.company) : undefined,
         segment: text(body.segment) || undefined,
         totalValue: body.totalValue !== undefined ? Number(body.totalValue) : undefined,
+        customData: typeof body.customData === "object" && body.customData ? body.customData as Record<string, unknown> : undefined,
       }));
     }
 
