@@ -484,9 +484,11 @@ export async function createContact(input: CreateContactInput) {
 export async function updateContact(
   slug: IndustryKey,
   contactId: number,
-  patch: { name?: string; phone?: string; email?: string; company?: string; segment?: string; totalValue?: number },
+  patch: { name?: string; phone?: string; email?: string; company?: string; segment?: string; totalValue?: number; customData?: Record<string, unknown> },
 ) {
   const organization = await resolveOrganization(slug);
+  const [existing] = await db.select().from(customers).where(and(eq(customers.id, contactId), eq(customers.organizationId, organization.id))).limit(1);
+  if (!existing) throw new Error("Contact not found");
   const [contact] = await db.update(customers).set({
     ...(patch.name ? { name: patch.name.trim() } : {}),
     ...(patch.phone ? { phone: patch.phone.trim() } : {}),
@@ -494,6 +496,7 @@ export async function updateContact(
     ...(patch.company !== undefined ? { company: patch.company.trim() || null } : {}),
     ...(patch.segment ? { segment: patch.segment } : {}),
     ...(patch.totalValue !== undefined ? { totalValue: patch.totalValue } : {}),
+    ...(patch.customData ? { customData: { ...(existing.customData || {}), ...patch.customData } as Record<string, string> } : {}),
   }).where(and(eq(customers.id, contactId), eq(customers.organizationId, organization.id))).returning();
   if (!contact) throw new Error("Contact not found");
   await db.insert(activities).values({
