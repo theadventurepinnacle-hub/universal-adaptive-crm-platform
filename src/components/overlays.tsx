@@ -425,10 +425,10 @@ export function CompanyDrawer({ data, company, onClose, onOpenContact }: { data:
 export function AssistantPanel({ data, employeeMode, onClose }: { data: WorkspaceData; employeeMode: boolean; onClose: () => void }) {
   const prompts = employeeMode
     ? ["Who should I call first?", "What are my pending tasks?", "Which enquiries need follow-up?"]
-    : ["How is my travel business doing?", "Which enquiries should I follow up today?", "What are travellers asking about?", "Summarise my trip bookings"];
+    : ["How many maid profiles do we have?", "Which client requests need follow-up today?", "Which maids match this service request?", "Summarise active placements and pending starts"];
   const [messages, setMessages] = useState<Array<{ role: "assistant" | "user"; text: string }>>([{
     role: "assistant",
-    text: `I’m your AI assistant for ${data.organization.name}. I can review enquiries, trip bookings, follow-ups and payments using your live CRM data.`,
+    text: `I’m your HOMIGO agency assistant. I can review client requests, maid profiles, placement schedules, follow-ups and payments using your CRM data.`,
   }]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
