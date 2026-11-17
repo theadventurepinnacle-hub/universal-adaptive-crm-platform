@@ -965,8 +965,8 @@ export function PaymentsView({ data, onCollect, onAddClient, onNewInvoice, onRec
         <div className="new-invoice-menu">
           <button className="btn btn-secondary" type="button" onClick={() => setNewMenuOpen((open) => !open)}><Plus size={16} /> New</button>
           {newMenuOpen && <div className="side-menu invoice-new-menu">
-            <button type="button" onClick={() => { setNewMenuOpen(false); onAddClient(); }}><Users size={15} /> Add client only</button>
             <button type="button" onClick={() => { setNewMenuOpen(false); onNewInvoice(); }}><ReceiptText size={15} /> New client + invoice</button>
+            <button type="button" onClick={() => { setNewMenuOpen(false); onAddClient(); }}><Users size={15} /> Add client only</button>
           </div>}
         </div>
         <button className="btn btn-primary" type="button" onClick={() => onRecordPayment(data.payments.find((payment) => payment.status !== "Paid" && payment.totalAmount > payment.paidAmount)?.id ?? 0)} disabled={!hasCollection}><CircleDollarSign size={16} /> Record payment</button>
