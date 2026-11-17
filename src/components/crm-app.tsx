@@ -26,8 +26,8 @@ type ViewKey = "dashboard" | "contacts" | "maids" | "companies" | "leads" | "dea
 type NavItem = { key: ViewKey; label: string; icon: LucideIcon; badge?: number };
 
 const pageTitles: Record<ViewKey, string> = {
-  dashboard: "Dashboard", contacts: "Clients", maids: "Staff Directory", companies: "Partner Accounts", leads: "Service Requests", deals: "Service Bookings",
-  pipeline: "Service Pipeline", tasks: "Tasks & Follow-ups", calendar: "Schedule", reports: "Reports",
+  dashboard: "Dashboard", contacts: "Clients", maids: "Maid Directory", companies: "Partner Accounts", leads: "Service Requests", deals: "Placements",
+  pipeline: "Placement Pipeline", tasks: "Tasks & Follow-ups", calendar: "Attendance & Schedule", reports: "Reports",
   quotations: "Service Agreements", payments: "Payments & Dues", settings: "Settings", more: "More",
 };
 
@@ -180,15 +180,15 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
         { label: "OVERVIEW", items: [
           { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
           { key: "contacts", label: "Clients", icon: Users },
-          { key: "maids", label: "Staff Directory", icon: ShieldCheck, badge: data.maids.length },
+          { key: "maids", label: "Maid Directory", icon: ShieldCheck, badge: data.maids.length },
         ] },
         { label: "SERVICE OPERATIONS", items: [
           { key: "leads", label: "Service Requests", icon: Target, badge: data.leads.length },
-          { key: "deals", label: "Service Bookings", icon: Handshake, badge: data.deals.length },
-          { key: "pipeline", label: "Service Pipeline", icon: TrendingUp },
+          { key: "deals", label: "Placements", icon: Handshake, badge: data.deals.length },
+          { key: "pipeline", label: "Placement Pipeline", icon: TrendingUp },
         ] },
-        { label: "WORKSPACE", items: [{ key: "tasks", label: "Tasks & Follow-ups", icon: ListChecks, badge: openTasks }, { key: "calendar", label: "Schedule", icon: CalendarDays }, { key: "reports", label: "Reports", icon: BarChart3 }] },
-        { label: "FINANCE", items: [{ key: "quotations", label: "Quotations", icon: FileText }, { key: "payments", label: "Payments & Dues", icon: Wallet }] },
+        { label: "WORKSPACE", items: [{ key: "tasks", label: "Tasks & Follow-ups", icon: ListChecks, badge: openTasks }, { key: "calendar", label: "Attendance & Schedule", icon: CalendarDays }, { key: "reports", label: "Reports", icon: BarChart3 }] },
+        { label: "FINANCE", items: [{ key: "quotations", label: "Service Agreements", icon: FileText }, { key: "payments", label: "Payments & Dues", icon: Wallet }] },
       ]
     : [
         { label: "OVERVIEW", items: [{ key: "dashboard", label: "Dashboard", icon: LayoutDashboard }, { key: "contacts", label: "Travellers", icon: Users }, { key: "companies", label: "Travel Partners", icon: Building2 }] },
@@ -227,7 +227,7 @@ export default function CrmApp({ initialData }: { initialData: WorkspaceData }) 
             </button>
             <button onClick={() => void switchWorkspace("homigo")}>
               <span className="workspace-logo" style={{ background: "#A3E635", color: "#17210b" }}>HO</span>
-              <span><strong>HOMIGO</strong><small>Home Services &amp; Cleaning</small></span>
+              <span><strong>HOMIGO</strong><small>Maid Supply &amp; Home Services</small></span>
               {data.organization.slug === "homigo" ? <Check size={14} /> : null}
             </button>
           </div>}
