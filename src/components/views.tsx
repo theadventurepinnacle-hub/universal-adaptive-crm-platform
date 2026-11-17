@@ -30,7 +30,7 @@ export function ContactsView({ data, onAdd, onView, onEdit, onDelete }: {
     return haystack.includes(query.toLowerCase()) && (segment === "All statuses" || contact.segment === segment);
   }), [data.customers, query, segment]);
 
-  const exportRows = () => downloadCsv("travellers.csv", [
+  const exportRows = () => downloadCsv(data.organization.slug === "homigo" ? "homigo-clients.csv" : "travellers.csv", [
     ["Name", "Company", "Email", "Phone", "Status", "Owner", "Value"],
     ...filtered.map((contact) => [contact.name, contact.company, contact.email, contact.phone, contact.segment, contact.owner, contact.totalValue]),
   ]);
@@ -45,24 +45,24 @@ export function ContactsView({ data, onAdd, onView, onEdit, onDelete }: {
       />
 
       <section className="summary-row">
-        <div className="summary-card"><span className="summary-icon mint"><Users size={16} /></span><div><small>Travellers</small><strong>{data.customers.length}</strong></div></div>
-        <div className="summary-card"><span className="summary-icon yellow"><Target size={16} /></span><div><small>Active travellers</small><strong>{data.customers.filter((contact) => contact.segment !== "Inactive").length}</strong></div></div>
+        <div className="summary-card"><span className="summary-icon mint"><Users size={16} /></span><div><small>{data.profile.customerPlural}</small><strong>{data.customers.length}</strong></div></div>
+        <div className="summary-card"><span className="summary-icon yellow"><Target size={16} /></span><div><small>{data.organization.slug === "homigo" ? "Active clients" : "Active travellers"}</small><strong>{data.customers.filter((contact) => contact.segment !== "Inactive").length}</strong></div></div>
         <div className="summary-card"><span className="summary-icon lilac"><Building2 size={16} /></span><div><small>Companies</small><strong>{data.companies.length}</strong></div></div>
         <div className="summary-card"><span className="summary-icon peach"><Wallet size={16} /></span><div><small>Lifetime value</small><strong>{money(data.customers.reduce((sum, contact) => sum + contact.totalValue, 0))}</strong></div></div>
       </section>
 
       <Card pad={false}>
         <div className="table-toolbar">
-          <label className="search-box"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search travellers, partners, email..." /></label>
+          <label className="search-box"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={data.organization.slug === "homigo" ? "Search clients, properties, phone..." : "Search travellers, partners, email..."} /></label>
           <div className="toolbar-actions">
-            <SelectField ariaLabel="Filter travellers by status" value={segment} onChange={setSegment} options={["All statuses", "Active", "VIP", "Inactive", "New"].map((value) => ({ value, label: value }))} />
+            <SelectField ariaLabel="Filter travellers by status" value={segment} onChange={setSegment} options={["All statuses", "Active", "VIP", "Inactive", "New", "Hot Lead"].map((value) => ({ value, label: value }))} />
             <span className="badge badge-gray">{filtered.length} showing</span>
           </div>
         </div>
 
         <div className="table-wrap desktop-only">
           <table className="data-table">
-            <thead><tr><th>Contact</th><th>Company</th><th>Phone</th><th>Status</th><th>Owner</th><th>Last activity</th><th>Value</th><th aria-label="Actions" /></tr></thead>
+            <thead><tr><th>{data.profile.customerLabel}</th><th>{data.organization.slug === "homigo" ? "Property type" : "Company"}</th><th>Phone</th><th>Status</th><th>Owner</th><th>Last activity</th><th>Value</th><th aria-label="Actions" /></tr></thead>
             <tbody>
               {filtered.map((contact) => (
                 <tr key={contact.id}>
@@ -195,10 +195,10 @@ export function LeadsView({ data, onAdd, onView, onAssign, onStage, onAction }: 
       />
 
       <section className="summary-row">
-        <div className="summary-card"><span className="summary-icon yellow"><Target size={16} /></span><div><small>Total leads</small><strong>{data.leads.length}</strong></div></div>
-        <div className="summary-card"><span className="summary-icon mint"><TrendingUp size={16} /></span><div><small>Hot leads (75+)</small><strong>{data.leads.filter((lead) => lead.score >= 75).length}</strong></div></div>
+        <div className="summary-card"><span className="summary-icon yellow"><Target size={16} /></span><div><small>Total requests</small><strong>{data.leads.length}</strong></div></div>
+        <div className="summary-card"><span className="summary-icon mint"><TrendingUp size={16} /></span><div><small>High priority (75+)</small><strong>{data.leads.filter((lead) => lead.score >= 75).length}</strong></div></div>
         <div className="summary-card"><span className="summary-icon lilac"><Users size={16} /></span><div><small>Unassigned</small><strong>{data.leads.filter((lead) => !lead.assignedToId).length}</strong></div></div>
-        <div className="summary-card"><span className="summary-icon peach"><CircleDollarSign size={16} /></span><div><small>Open value</small><strong>{money(data.leads.reduce((sum, lead) => sum + lead.expectedValue, 0))}</strong></div></div>
+        <div className="summary-card"><span className="summary-icon peach"><CircleDollarSign size={16} /></span><div><small>{data.organization.slug === "homigo" ? "Request value" : "Open value"}</small><strong>{money(data.leads.reduce((sum, lead) => sum + lead.expectedValue, 0))}</strong></div></div>
       </section>
 
       <Card pad={false}>
@@ -213,7 +213,7 @@ export function LeadsView({ data, onAdd, onView, onAssign, onStage, onAction }: 
 
         <div className="table-wrap desktop-only">
           <table className="data-table leads-table">
-            <thead><tr><th>Lead</th><th>Score</th><th>Source</th><th>Status</th><th>Priority</th><th>Value</th><th>Assigned to</th><th>Next follow-up</th><th aria-label="Actions" /></tr></thead>
+            <thead><tr><th>{data.profile.leadLabel}</th><th>Score</th><th>Source</th><th>Status</th><th>Priority</th><th>Value</th><th>Assigned to</th><th>Next follow-up</th><th aria-label="Actions" /></tr></thead>
             <tbody>
               {filtered.map((lead) => (
                 <tr key={lead.id}>
@@ -335,14 +335,14 @@ export function DealsView({ data, onAdd, onOpen, onStage }: {
         subtitle="Drag deals between stages, or update the stage from each card"
         actions={<>
           <div className="view-switch"><button className={mode === "board" ? "active" : ""} onClick={() => setMode("board")}><LayoutGrid size={14} /> Board</button><button className={mode === "list" ? "active" : ""} onClick={() => setMode("list")}><List size={14} /> List</button></div>
-          <button className="btn btn-primary" onClick={onAdd}><Plus size={16} /> New deal</button>
+          <button className="btn btn-primary" onClick={onAdd}><Plus size={16} /> {data.organization.slug === "homigo" ? "New placement" : "New deal"}</button>
         </>}
       />
 
       <section className="summary-row">
         <div className="summary-card"><span className="summary-icon yellow"><CircleDollarSign size={16} /></span><div><small>Pipeline value</small><strong>{money(total)}</strong></div></div>
         <div className="summary-card"><span className="summary-icon mint"><TrendingUp size={16} /></span><div><small>Weighted forecast</small><strong>{money(weighted)}</strong></div></div>
-        <div className="summary-card"><span className="summary-icon lilac"><Handshake size={16} /></span><div><small>Open deals</small><strong>{data.deals.length}</strong></div></div>
+        <div className="summary-card"><span className="summary-icon lilac"><Handshake size={16} /></span><div><small>{data.profile.dealPlural || "Open deals"}</small><strong>{data.deals.length}</strong></div></div>
         <div className="summary-card"><span className="summary-icon peach"><CalendarDays size={16} /></span><div><small>Closing this month</small><strong>{closing}</strong></div></div>
       </section>
 
@@ -375,7 +375,7 @@ export function DealsView({ data, onAdd, onOpen, onStage }: {
                       dragging={draggingId === deal.id}
                     />
                   ))}
-                  <button className="add-deal" onClick={onAdd}><Plus size={13} /> Add deal</button>
+                  <button className="add-deal" onClick={onAdd}><Plus size={13} /> {data.organization.slug === "homigo" ? "Add placement" : "Add deal"}</button>
                 </div>
               </section>
             );
@@ -443,7 +443,7 @@ export function PipelineView({ data, onOpen, onSettings }: { data: WorkspaceData
               const rate = index === 0 ? 100 : Math.round(deals.length / Math.max(previous, 1) * 100);
               return (
                 <div key={stage.id} className="funnel-row">
-                  <div className="funnel-label"><span className="col-dot" style={{ background: stage.color }} /><strong>{stage.name}</strong><small>{deals.length} deals</small></div>
+                  <div className="funnel-label"><span className="col-dot" style={{ background: stage.color }} /><strong>{stage.name}</strong><small>{deals.length} {data.profile.dealLabel?.toLowerCase() || "deals"}</small></div>
                   <div className="funnel-track"><i style={{ width: `${Math.max(4, value / max * 100)}%`, background: stage.color }} /></div>
                   <div className="funnel-value"><strong>{money(value)}</strong><small>{index === 0 ? "Entry" : `${rate}% step conversion`}</small></div>
                 </div>
@@ -914,7 +914,7 @@ export function SettingsView({ data, onToast }: {
 export function QuotationsView({ data, onToast }: { data: WorkspaceData; onToast: (message: string) => void }) {
   return (
     <div className="page">
-      <PageHead eyebrow="FINANCE" title="Quotations" subtitle={`${data.quotations.length} proposals ready to send and track`} actions={<button className="btn btn-primary" onClick={() => onToast("Quotation builder opened")}><Plus size={16} /> New quotation</button>} />
+      <PageHead eyebrow="FINANCE" title={data.organization.slug === "homigo" ? "Service Agreements" : "Quotations"} subtitle={data.organization.slug === "homigo" ? `${data.quotations.length} client service agreements to prepare and track` : `${data.quotations.length} proposals ready to send and track`} actions={<button className="btn btn-primary" onClick={() => onToast("Agreement builder opened")}><Plus size={16} /> {data.organization.slug === "homigo" ? "New agreement" : "New quotation"}</button>} />
       <section className="quote-grid">
         {data.quotations.map((quote) => (
           <Card key={quote.id}>
